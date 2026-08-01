@@ -1,13 +1,39 @@
 import { describe, expect, it } from "vitest";
 import {
   classOneBlockers,
+  findingsFromValues,
   isClassOne,
   psi,
   psiCompleteness,
-  type PsiInput,
+  type PsiFindings,
+  type PsiValues,
 } from "./psi";
 
-const young: PsiInput = {
+/** A well 34-year-old: nothing scores, everything measurable is normal. */
+const well: PsiFindings = {
+  ageYears: 34,
+  sex: "male",
+  nursingHomeResident: false,
+  neoplasticDisease: false,
+  liverDisease: false,
+  heartFailure: false,
+  cerebrovascularDisease: false,
+  renalDisease: false,
+  alteredMentalStatus: false,
+  tachypnoea: false,
+  hypotension: false,
+  temperatureExtreme: false,
+  tachycardia: false,
+  pleuralEffusion: false,
+  hypoxaemia: false,
+  acidosis: false,
+  uraemia: false,
+  hyponatraemia: false,
+  hyperglycaemia: false,
+  anaemia: false,
+};
+
+const values: PsiValues = {
   ageYears: 34,
   sex: "male",
   nursingHomeResident: false,
@@ -24,67 +50,207 @@ const young: PsiInput = {
   pleuralEffusion: false,
 };
 
-describe("PSI step one", () => {
-  it("assigns class I to a well patient under 50", () => {
-    expect(isClassOne(young)).toBe(true);
-    expect(psi(young).riskClass).toBe("I");
+/* ================================================================
+   Thresholds — the boundary behaviour lives here
+   ================================================================ */
+
+describe("findingsFromValues", () => {
+  it("scores respiratory rate at 30, not 29", () => {
+    expect(findingsFromValues({ ...values, respiratoryRate: 29 }).tachypnoea).toBe(false);
+    expect(findingsFromValues({ ...values, respiratoryRate: 30 }).tachypnoea).toBe(true);
   });
 
-  it("drops out of class I on age alone", () => {
-    expect(isClassOne({ ...young, ageYears: 51 })).toBe(false);
+  it("scores systolic under 90, not at 90", () => {
+    expect(findingsFromValues({ ...values, systolicBp: 90 }).hypotension).toBe(false);
+    expect(findingsFromValues({ ...values, systolicBp: 89 }).hypotension).toBe(true);
   });
 
-  it("drops out of class I on any listed comorbidity", () => {
-    expect(isClassOne({ ...young, heartFailure: true })).toBe(false);
-    expect(isClassOne({ ...young, neoplasticDisease: true })).toBe(false);
+  it("scores temperature at both extremes", () => {
+    expect(findingsFromValues({ ...values, temperatureC: 35 }).temperatureExtreme).toBe(false);
+    expect(findingsFromValues({ ...values, temperatureC: 34.9 }).temperatureExtreme).toBe(true);
+    expect(findingsFromValues({ ...values, temperatureC: 39.9 }).temperatureExtreme).toBe(false);
+    expect(findingsFromValues({ ...values, temperatureC: 40 }).temperatureExtreme).toBe(true);
   });
 
-  it("drops out of class I on deranged vitals", () => {
-    expect(isClassOne({ ...young, respiratoryRate: 30 })).toBe(false);
-    expect(isClassOne({ ...young, systolicBp: 88 })).toBe(false);
-    expect(isClassOne({ ...young, pulse: 130 })).toBe(false);
-    expect(isClassOne({ ...young, temperatureC: 40 })).toBe(false);
-    expect(isClassOne({ ...young, temperatureC: 34.5 })).toBe(false);
+  it("scores pulse at 125, not 124", () => {
+    expect(findingsFromValues({ ...values, pulse: 124 }).tachycardia).toBe(false);
+    expect(findingsFromValues({ ...values, pulse: 125 }).tachycardia).toBe(true);
+  });
+
+  it("scores each laboratory threshold at its cut point", () => {
+    expect(findingsFromValues({ ...values, arterialPh: 7.35 }).acidosis).toBe(false);
+    expect(findingsFromValues({ ...values, arterialPh: 7.34 }).acidosis).toBe(true);
+
+    expect(findingsFromValues({ ...values, bunMgDl: 29 }).uraemia).toBe(false);
+    expect(findingsFromValues({ ...values, bunMgDl: 30 }).uraemia).toBe(true);
+
+    expect(findingsFromValues({ ...values, sodiumMmolL: 130 }).hyponatraemia).toBe(false);
+    expect(findingsFromValues({ ...values, sodiumMmolL: 129 }).hyponatraemia).toBe(true);
+
+    expect(findingsFromValues({ ...values, glucoseMgDl: 249 }).hyperglycaemia).toBe(false);
+    expect(findingsFromValues({ ...values, glucoseMgDl: 250 }).hyperglycaemia).toBe(true);
+
+    expect(findingsFromValues({ ...values, haematocritPct: 30 }).anaemia).toBe(false);
+    expect(findingsFromValues({ ...values, haematocritPct: 29 }).anaemia).toBe(true);
+  });
+
+  it("takes hypoxaemia from either PaO₂ or saturations", () => {
+    expect(findingsFromValues({ ...values, pao2MmHg: 60 }).hypoxaemia).toBe(false);
+    expect(findingsFromValues({ ...values, pao2MmHg: 59 }).hypoxaemia).toBe(true);
+    expect(findingsFromValues({ ...values, oxygenSaturationPct: 90 }).hypoxaemia).toBe(false);
+    expect(findingsFromValues({ ...values, oxygenSaturationPct: 89 }).hypoxaemia).toBe(true);
+  });
+
+  it("leaves an unmeasured investigation undefined rather than false", () => {
+    const f = findingsFromValues(values);
+    expect(f.acidosis).toBeUndefined();
+    expect(f.uraemia).toBeUndefined();
+    expect(f.hyponatraemia).toBeUndefined();
+    expect(f.hyperglycaemia).toBeUndefined();
+    expect(f.anaemia).toBeUndefined();
   });
 });
 
+/* ================================================================
+   Step one
+   ================================================================ */
+
 describe("classOneBlockers", () => {
   it("returns nothing for a patient who is in class I", () => {
-    expect(classOneBlockers(young)).toEqual([]);
+    expect(classOneBlockers(well)).toEqual([]);
+    expect(isClassOne(well)).toBe(true);
+    expect(psi(well).riskClass).toBe("I");
   });
 
   it("names the single reason a patient falls out", () => {
-    expect(classOneBlockers({ ...young, ageYears: 62 })).toEqual(["Over 50"]);
-    expect(classOneBlockers({ ...young, heartFailure: true })).toEqual([
-      "Heart failure",
-    ]);
+    expect(classOneBlockers({ ...well, ageYears: 62 })).toEqual(["Over 50"]);
+    expect(classOneBlockers({ ...well, heartFailure: true })).toEqual(["Heart failure"]);
   });
 
   it("names every reason when there are several", () => {
-    const blockers = classOneBlockers({
-      ...young,
-      ageYears: 71,
-      renalDisease: true,
-      respiratoryRate: 32,
-    });
-    expect(blockers).toEqual([
-      "Over 50",
-      "Renal disease",
-      "Respiratory rate 30 or more",
-    ]);
+    expect(
+      classOneBlockers({
+        ...well,
+        ageYears: 71,
+        renalDisease: true,
+        tachypnoea: true,
+      }),
+    ).toEqual(["Over 50", "Renal disease", "Respiratory rate 30 or more"]);
   });
 
-  it("agrees with isClassOne", () => {
-    expect(isClassOne({ ...young, pulse: 130 })).toBe(false);
-    expect(classOneBlockers({ ...young, pulse: 130 })).toContain(
-      "Pulse 125 or more",
+  it("is not affected by laboratory findings — step one needs no bloods", () => {
+    expect(isClassOne({ ...well, uraemia: true, acidosis: true })).toBe(true);
+  });
+
+  it("drops out on any deranged vital", () => {
+    expect(isClassOne({ ...well, tachycardia: true })).toBe(false);
+    expect(isClassOne({ ...well, hypotension: true })).toBe(false);
+    expect(isClassOne({ ...well, temperatureExtreme: true })).toBe(false);
+  });
+});
+
+/* ================================================================
+   Scoring
+   ================================================================ */
+
+describe("PSI point scoring", () => {
+  it("scores age directly for men", () => {
+    const result = psi({ ...well, ageYears: 68 });
+    expect(result.points).toBe(68);
+    expect(result.riskClass).toBe("II");
+  });
+
+  it("subtracts ten for women", () => {
+    expect(psi({ ...well, ageYears: 68, sex: "female" }).points).toBe(58);
+  });
+
+  it("adds comorbidity points", () => {
+    // 68 + neoplastic 30 + liver 20 + CHF 10 + CVD 10 + renal 10 = 148
+    expect(
+      psi({
+        ...well,
+        ageYears: 68,
+        neoplasticDisease: true,
+        liverDisease: true,
+        heartFailure: true,
+        cerebrovascularDisease: true,
+        renalDisease: true,
+      }).points,
+    ).toBe(148);
+  });
+
+  it("adds examination points", () => {
+    // 68 + AMS 20 + RR 20 + SBP 20 + temp 15 + pulse 10 = 153
+    expect(
+      psi({
+        ...well,
+        ageYears: 68,
+        alteredMentalStatus: true,
+        tachypnoea: true,
+        hypotension: true,
+        temperatureExtreme: true,
+        tachycardia: true,
+      }).points,
+    ).toBe(153);
+  });
+
+  it("adds investigation points", () => {
+    // 68 + pH 30 + BUN 20 + Na 20 + glucose 10 + Hct 10 + hypoxia 10 + effusion 10 = 178
+    expect(
+      psi({
+        ...well,
+        ageYears: 68,
+        acidosis: true,
+        uraemia: true,
+        hyponatraemia: true,
+        hyperglycaemia: true,
+        anaemia: true,
+        hypoxaemia: true,
+        pleuralEffusion: true,
+      }).points,
+    ).toBe(178);
+  });
+
+  it("scores an unmeasured investigation as nothing", () => {
+    const unmeasured = { ...well, ageYears: 60, uraemia: undefined };
+    expect(psi(unmeasured).points).toBe(60);
+  });
+
+  it("bands risk classes at the published cut points", () => {
+    expect(psi({ ...well, ageYears: 70 }).riskClass).toBe("II"); // 70
+    expect(psi({ ...well, ageYears: 71 }).riskClass).toBe("III"); // 71
+    expect(psi({ ...well, ageYears: 90 }).riskClass).toBe("III"); // 90
+    expect(psi({ ...well, ageYears: 91 }).riskClass).toBe("IV"); // 91
+    expect(psi({ ...well, ageYears: 100, neoplasticDisease: true }).riskClass).toBe("IV"); // 130
+    expect(psi({ ...well, ageYears: 101, neoplasticDisease: true }).riskClass).toBe("V"); // 131
+  });
+
+  it("maps class to site of care", () => {
+    expect(psi({ ...well, ageYears: 70 }).siteOfCare).toBe("Outpatient");
+    expect(psi({ ...well, ageYears: 95 }).siteOfCare).toBe("Admit");
+    expect(psi({ ...well, ageYears: 140 }).siteOfCare).toBe(
+      "Admit, assess for critical care",
     );
   });
 });
 
+/* ================================================================
+   Completeness
+   ================================================================ */
+
 describe("psiCompleteness", () => {
-  it("lists every unmeasured investigation when none are entered", () => {
-    const c = psiCompleteness({ ...young, ageYears: 68 });
+  const noBloods: PsiFindings = {
+    ...well,
+    ageYears: 68,
+    acidosis: undefined,
+    uraemia: undefined,
+    hyponatraemia: undefined,
+    hyperglycaemia: undefined,
+    anaemia: undefined,
+  };
+
+  it("lists every unmeasured investigation", () => {
+    const c = psiCompleteness(noBloods);
     expect(c.complete).toBe(false);
     expect(c.missing.map((m) => m.label)).toEqual([
       "Arterial pH",
@@ -92,129 +258,36 @@ describe("psiCompleteness", () => {
       "Sodium",
       "Glucose",
       "Haematocrit",
-      "PaO₂ or saturations",
     ]);
-    // 30 + 20 + 20 + 10 + 10 + 10
-    expect(c.maxAdditionalPoints).toBe(100);
+    expect(c.maxAdditionalPoints).toBe(90); // 30 + 20 + 20 + 10 + 10
   });
 
   it("shows how much worse the class could be — the reason this exists", () => {
-    // 68 points on demographics alone reads class II, but unmeasured
-    // labs could carry it to 168, which is class V.
-    const c = psiCompleteness({ ...young, ageYears: 68 });
-    expect(psi({ ...young, ageYears: 68 }).riskClass).toBe("II");
-    expect(c.worstCaseClass).toBe("V");
+    expect(psi(noBloods).riskClass).toBe("II"); // 68 points
+    expect(psiCompleteness(noBloods).worstCaseClass).toBe("V"); // 68 + 90 = 158
   });
 
-  it("counts either oxygenation measure as measured", () => {
-    const withSats = psiCompleteness({
-      ...young,
-      ageYears: 68,
-      oxygenSaturationPct: 94,
-    });
-    expect(withSats.missing.map((m) => m.label)).not.toContain(
-      "PaO₂ or saturations",
-    );
+  it("shrinks as values are entered", () => {
+    const partial = { ...noBloods, uraemia: false, hyponatraemia: false };
+    const c = psiCompleteness(partial);
+    expect(c.missing.map((m) => m.label)).toEqual([
+      "Arterial pH",
+      "Glucose",
+      "Haematocrit",
+    ]);
+    expect(c.maxAdditionalPoints).toBe(50);
+  });
 
-    const withPao2 = psiCompleteness({ ...young, ageYears: 68, pao2MmHg: 80 });
-    expect(withPao2.missing.map((m) => m.label)).not.toContain(
-      "PaO₂ or saturations",
-    );
+  it("counts a normal result as measured, not missing", () => {
+    const c = psiCompleteness({ ...noBloods, acidosis: false });
+    expect(c.missing.map((m) => m.label)).not.toContain("Arterial pH");
   });
 
   it("reports complete once everything is entered", () => {
-    const c = psiCompleteness({
-      ...young,
-      ageYears: 68,
-      arterialPh: 7.4,
-      bunMgDl: 12,
-      sodiumMmolL: 138,
-      glucoseMgDl: 100,
-      haematocritPct: 42,
-      oxygenSaturationPct: 96,
-    });
+    const c = psiCompleteness({ ...well, ageYears: 68 });
     expect(c.complete).toBe(true);
     expect(c.missing).toEqual([]);
     expect(c.maxAdditionalPoints).toBe(0);
     expect(c.worstCaseClass).toBe("II");
-  });
-});
-
-describe("PSI point scoring", () => {
-  it("scores age directly for men", () => {
-    const result = psi({ ...young, ageYears: 68 });
-    expect(result.points).toBe(68);
-    expect(result.riskClass).toBe("II");
-  });
-
-  it("subtracts ten for women", () => {
-    expect(psi({ ...young, ageYears: 68, sex: "female" }).points).toBe(58);
-  });
-
-  it("adds comorbidity points", () => {
-    // 68 + neoplastic 30 + liver 20 + CHF 10 + CVD 10 + renal 10 = 148
-    const result = psi({
-      ...young,
-      ageYears: 68,
-      neoplasticDisease: true,
-      liverDisease: true,
-      heartFailure: true,
-      cerebrovascularDisease: true,
-      renalDisease: true,
-    });
-    expect(result.points).toBe(148);
-    expect(result.riskClass).toBe("V");
-  });
-
-  it("adds examination points", () => {
-    // 68 + AMS 20 + RR 20 + SBP 20 + temp 15 + pulse 10 = 153
-    const result = psi({
-      ...young,
-      ageYears: 68,
-      alteredMentalStatus: true,
-      respiratoryRate: 32,
-      systolicBp: 84,
-      temperatureC: 40.2,
-      pulse: 130,
-    });
-    expect(result.points).toBe(153);
-  });
-
-  it("adds laboratory points", () => {
-    // 68 + pH 30 + BUN 20 + Na 20 + glucose 10 + Hct 10 + hypoxia 10 + effusion 10 = 178
-    const result = psi({
-      ...young,
-      ageYears: 68,
-      arterialPh: 7.3,
-      bunMgDl: 34,
-      sodiumMmolL: 126,
-      glucoseMgDl: 280,
-      haematocritPct: 27,
-      pao2MmHg: 55,
-      pleuralEffusion: true,
-    });
-    expect(result.points).toBe(178);
-  });
-
-  it("treats saturations under 90 as hypoxia when PaO2 is absent", () => {
-    expect(psi({ ...young, ageYears: 60, oxygenSaturationPct: 88 }).points).toBe(70);
-    expect(psi({ ...young, ageYears: 60, oxygenSaturationPct: 93 }).points).toBe(60);
-  });
-
-  it("scores unmeasured investigations as zero", () => {
-    expect(psi({ ...young, ageYears: 60 }).points).toBe(60);
-  });
-
-  it("bands risk classes at the published cut points", () => {
-    expect(psi({ ...young, ageYears: 70 }).riskClass).toBe("II"); // 70
-    expect(psi({ ...young, ageYears: 71 }).riskClass).toBe("III"); // 71
-    expect(psi({ ...young, ageYears: 90 }).riskClass).toBe("III"); // 90
-    expect(psi({ ...young, ageYears: 91 }).riskClass).toBe("IV"); // 91
-    expect(
-      psi({ ...young, ageYears: 100, neoplasticDisease: true }).riskClass,
-    ).toBe("IV"); // 130
-    expect(
-      psi({ ...young, ageYears: 101, neoplasticDisease: true }).riskClass,
-    ).toBe("V"); // 131
   });
 });

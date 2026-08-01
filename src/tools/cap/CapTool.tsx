@@ -12,16 +12,21 @@ import { SeamNote } from "@/components/modules/SeamNote";
 import { Trajectory } from "@/components/modules/Trajectory";
 import {
   FieldGroup,
-  NumberField,
-  OptionalNumberField,
+  ResultGroup,
   Segmented,
+  SliderField,
   ToggleChip,
 } from "@/components/modules/controls";
 import { Panel, PanelRow } from "@/components/shell/Panel";
 import { ToolFrame } from "@/components/shell/ToolFrame";
 
 import { asPercent, canChangeManagement, revise } from "@/lib/probability";
-import { classOneBlockers, psi, psiCompleteness } from "@/lib/scores/psi";
+import {
+  classOneBlockers,
+  psi,
+  psiCompleteness,
+  type PsiFindings,
+} from "@/lib/scores/psi";
 
 import {
   calibrationGap,
@@ -42,35 +47,42 @@ import {
 type TestResult = "positive" | "negative";
 
 export function CapTool() {
-  // ---- demographics ----
-  const [ageYears, setAgeYears] = useState(68);
-  const [sex, setSex] = useState<"male" | "female">("male");
-  const [nursingHomeResident, setNursingHomeResident] = useState(false);
+  /*
+   * Everything except age and saturations is a single bit at a
+   * published cut point, so it is a toggle that starts off. A well
+   * patient needs no interaction at all; you tap only what is wrong.
+   */
 
-  // ---- comorbidity ----
+  // ---- continuous ----
+  const [ageYears, setAgeYears] = useState(65);
+  const [oxygenSaturationPct, setOxygenSaturationPct] = useState(96);
+  const [sex, setSex] = useState<"male" | "female">("male");
+
+  // ---- history ----
+  const [nursingHomeResident, setNursingHomeResident] = useState(false);
   const [neoplasticDisease, setNeoplasticDisease] = useState(false);
   const [liverDisease, setLiverDisease] = useState(false);
   const [heartFailure, setHeartFailure] = useState(false);
   const [cerebrovascularDisease, setCerebrovascularDisease] = useState(false);
   const [renalDisease, setRenalDisease] = useState(false);
 
-  // ---- examination ----
+  // ---- examination, each at its cut point ----
   const [alteredMentalStatus, setAlteredMentalStatus] = useState(false);
-  const [respiratoryRate, setRespiratoryRate] = useState(22);
-  const [systolicBp, setSystolicBp] = useState(128);
-  const [temperatureC, setTemperatureC] = useState(38.4);
-  const [pulse, setPulse] = useState(96);
+  const [tachypnoea, setTachypnoea] = useState(false);
+  const [hypotension, setHypotension] = useState(false);
+  const [temperatureExtreme, setTemperatureExtreme] = useState(false);
+  const [tachycardia, setTachycardia] = useState(false);
   const [pleuralEffusion, setPleuralEffusion] = useState(false);
 
-  // ---- investigations, undefined until measured ----
-  const [arterialPh, setArterialPh] = useState<number | undefined>();
-  const [bunMgDl, setBunMgDl] = useState<number | undefined>();
-  const [sodiumMmolL, setSodiumMmolL] = useState<number | undefined>();
-  const [glucoseMgDl, setGlucoseMgDl] = useState<number | undefined>();
-  const [haematocritPct, setHaematocritPct] = useState<number | undefined>();
-  const [oxygenSaturationPct, setOxygenSaturationPct] = useState<
-    number | undefined
-  >(93);
+  // ---- results, grouped as they are ordered ----
+  const [chemistryBack, setChemistryBack] = useState(false);
+  const [countBack, setCountBack] = useState(false);
+  const [gasBack, setGasBack] = useState(false);
+  const [uraemia, setUraemia] = useState(false);
+  const [hyponatraemia, setHyponatraemia] = useState(false);
+  const [hyperglycaemia, setHyperglycaemia] = useState(false);
+  const [anaemia, setAnaemia] = useState(false);
+  const [acidosis, setAcidosis] = useState(false);
 
   // ---- other panels ----
   const [comorbidTherapy, setComorbidTherapy] = useState(true);
@@ -81,7 +93,7 @@ export function CapTool() {
   const [testResult, setTestResult] = useState<TestResult>("positive");
   const [days, setDays] = useState(5);
 
-  const input = useMemo(
+  const findings: PsiFindings = useMemo(
     () => ({
       ageYears,
       sex,
@@ -92,31 +104,34 @@ export function CapTool() {
       cerebrovascularDisease,
       renalDisease,
       alteredMentalStatus,
-      respiratoryRate,
-      systolicBp,
-      temperatureC,
-      pulse,
-      arterialPh,
-      bunMgDl,
-      sodiumMmolL,
-      glucoseMgDl,
-      haematocritPct,
-      oxygenSaturationPct,
+      tachypnoea,
+      hypotension,
+      temperatureExtreme,
+      tachycardia,
       pleuralEffusion,
+      hypoxaemia: oxygenSaturationPct < 90,
+      // A panel that has not come back leaves its items undefined, so
+      // they read as unmeasured rather than silently as normal.
+      uraemia: chemistryBack ? uraemia : undefined,
+      hyponatraemia: chemistryBack ? hyponatraemia : undefined,
+      hyperglycaemia: chemistryBack ? hyperglycaemia : undefined,
+      anaemia: countBack ? anaemia : undefined,
+      acidosis: gasBack ? acidosis : undefined,
     }),
     [
       ageYears, sex, nursingHomeResident,
       neoplasticDisease, liverDisease, heartFailure,
       cerebrovascularDisease, renalDisease,
-      alteredMentalStatus, respiratoryRate, systolicBp, temperatureC, pulse,
-      arterialPh, bunMgDl, sodiumMmolL, glucoseMgDl, haematocritPct,
-      oxygenSaturationPct, pleuralEffusion,
+      alteredMentalStatus, tachypnoea, hypotension, temperatureExtreme,
+      tachycardia, pleuralEffusion, oxygenSaturationPct,
+      chemistryBack, countBack, gasBack,
+      uraemia, hyponatraemia, hyperglycaemia, anaemia, acidosis,
     ],
   );
 
-  const port = psi(input);
-  const blockers = classOneBlockers(input);
-  const completeness = psiCompleteness(input);
+  const port = psi(findings);
+  const blockers = classOneBlockers(findings);
+  const completeness = psiCompleteness(findings);
   const inClassOne = blockers.length === 0;
   const understated = !completeness.complete && completeness.worstCaseClass !== port.riskClass;
 
@@ -129,13 +144,16 @@ export function CapTool() {
   const extraDays = Math.max(0, days - durationGuidance.maxGuidelineDays);
   const withinGuideline = days <= durationGuidance.maxGuidelineDays;
 
+  const abnormalFindings = port.contributions.filter(
+    (c) => !c.label.startsWith("Age"),
+  ).length;
+
   const caseFields = [
     { label: "Age", value: ageYears },
-    { label: "RR", value: respiratoryRate },
-    { label: "Systolic", value: systolicBp },
-    { label: "Temp", value: temperatureC.toFixed(1) },
-    { label: "SpO₂", value: oxygenSaturationPct ?? "—" },
+    { label: "SpO₂", value: `${oxygenSaturationPct}%` },
+    { label: "Abnormal", value: abnormalFindings },
     { label: "PSI", value: port.riskClass },
+    { label: "Points", value: port.points },
   ];
 
   return (
@@ -273,13 +291,34 @@ export function CapTool() {
           </div>
 
           {/* --- inputs --- */}
-          <div className="grid grid-cols-1 gap-8 border-t border-hair pt-8 lg:grid-cols-4">
-            <div className="flex flex-col gap-4">
-              <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                Demographics
-              </p>
-              <div className="flex flex-wrap gap-x-6 gap-y-4">
-                <NumberField label="Age" value={ageYears} onChange={setAgeYears} min={16} max={110} />
+          <div className="flex flex-col gap-3 border-t border-hair pt-8">
+            <p className="m-0 max-w-[74ch] text-[12px] leading-relaxed text-faint">
+              Age and saturations are the only values the score uses
+              continuously. Everything else is a single bit at a published cut
+              point, so it is a toggle that starts normal — tap only what is
+              abnormal.
+            </p>
+
+            <div className="grid grid-cols-1 gap-8 pt-2 lg:grid-cols-4">
+              <div className="flex flex-col gap-6">
+                <SliderField
+                  label="Age"
+                  value={ageYears}
+                  onChange={setAgeYears}
+                  min={18}
+                  max={100}
+                  suffix="years"
+                  note={`${sex === "male" ? ageYears : ageYears - 10} pts`}
+                />
+                <SliderField
+                  label="Saturations"
+                  value={oxygenSaturationPct}
+                  onChange={setOxygenSaturationPct}
+                  min={70}
+                  max={100}
+                  suffix="%"
+                  note={oxygenSaturationPct < 90 ? "under 90 — 10 pts" : "at or above 90"}
+                />
                 <div className="flex flex-col gap-1.5">
                   <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
                     Sex
@@ -294,44 +333,39 @@ export function CapTool() {
                   />
                 </div>
               </div>
-              <ToggleChip label="Nursing home resident" active={nursingHomeResident} onChange={setNursingHomeResident} />
-            </div>
 
-            <FieldGroup label="Comorbidity">
-              <ToggleChip label="Neoplastic" active={neoplasticDisease} onChange={setNeoplasticDisease} />
-              <ToggleChip label="Liver" active={liverDisease} onChange={setLiverDisease} />
-              <ToggleChip label="Heart failure" active={heartFailure} onChange={setHeartFailure} />
-              <ToggleChip label="Cerebrovascular" active={cerebrovascularDisease} onChange={setCerebrovascularDisease} />
-              <ToggleChip label="Renal" active={renalDisease} onChange={setRenalDisease} />
-            </FieldGroup>
+              <FieldGroup label="History">
+                <ToggleChip label="Nursing home" active={nursingHomeResident} onChange={setNursingHomeResident} />
+                <ToggleChip label="Neoplastic" active={neoplasticDisease} onChange={setNeoplasticDisease} />
+                <ToggleChip label="Liver" active={liverDisease} onChange={setLiverDisease} />
+                <ToggleChip label="Heart failure" active={heartFailure} onChange={setHeartFailure} />
+                <ToggleChip label="Cerebrovascular" active={cerebrovascularDisease} onChange={setCerebrovascularDisease} />
+                <ToggleChip label="Renal" active={renalDisease} onChange={setRenalDisease} />
+              </FieldGroup>
 
-            <div className="flex flex-col gap-4">
-              <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                Examination
-              </p>
-              <div className="flex flex-wrap gap-x-6 gap-y-4">
-                <NumberField label="Resp rate" value={respiratoryRate} onChange={setRespiratoryRate} min={6} max={60} />
-                <NumberField label="Systolic" value={systolicBp} onChange={setSystolicBp} min={50} max={250} />
-                <NumberField label="Pulse" value={pulse} onChange={setPulse} min={30} max={220} />
-                <NumberField label="Temp" value={temperatureC} onChange={setTemperatureC} min={32} max={43} step={0.1} suffix="°C" />
-              </div>
-              <div className="flex flex-wrap gap-2">
+              <FieldGroup label="Examination">
                 <ToggleChip label="Altered mental status" active={alteredMentalStatus} onChange={setAlteredMentalStatus} />
+                <ToggleChip label="Resp rate ≥ 30" active={tachypnoea} onChange={setTachypnoea} />
+                <ToggleChip label="Systolic < 90" active={hypotension} onChange={setHypotension} />
+                <ToggleChip label="Temp < 35 or ≥ 40" active={temperatureExtreme} onChange={setTemperatureExtreme} />
+                <ToggleChip label="Pulse ≥ 125" active={tachycardia} onChange={setTachycardia} />
                 <ToggleChip label="Pleural effusion" active={pleuralEffusion} onChange={setPleuralEffusion} />
-              </div>
-            </div>
+              </FieldGroup>
 
-            <div className="flex flex-col gap-4">
-              <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                Investigations <span className="normal-case tracking-normal opacity-70">— leave blank if not measured</span>
-              </p>
-              <div className="flex flex-wrap gap-x-6 gap-y-4">
-                <OptionalNumberField label="pH" value={arterialPh} onChange={setArterialPh} min={6.5} max={7.8} step={0.01} />
-                <OptionalNumberField label="BUN" value={bunMgDl} onChange={setBunMgDl} min={1} max={200} suffix="mg/dL" />
-                <OptionalNumberField label="Sodium" value={sodiumMmolL} onChange={setSodiumMmolL} min={100} max={180} />
-                <OptionalNumberField label="Glucose" value={glucoseMgDl} onChange={setGlucoseMgDl} min={20} max={900} suffix="mg/dL" />
-                <OptionalNumberField label="Haematocrit" value={haematocritPct} onChange={setHaematocritPct} min={10} max={70} suffix="%" />
-                <OptionalNumberField label="SpO₂" value={oxygenSaturationPct} onChange={setOxygenSaturationPct} min={50} max={100} suffix="%" />
+              <div className="flex flex-col gap-5">
+                <ResultGroup label="Chemistry" available={chemistryBack} onAvailable={setChemistryBack}>
+                  <ToggleChip label="BUN ≥ 30" active={uraemia} onChange={setUraemia} />
+                  <ToggleChip label="Sodium < 130" active={hyponatraemia} onChange={setHyponatraemia} />
+                  <ToggleChip label="Glucose ≥ 250" active={hyperglycaemia} onChange={setHyperglycaemia} />
+                </ResultGroup>
+
+                <ResultGroup label="Blood count" available={countBack} onAvailable={setCountBack}>
+                  <ToggleChip label="Haematocrit < 30" active={anaemia} onChange={setAnaemia} />
+                </ResultGroup>
+
+                <ResultGroup label="Blood gas" available={gasBack} onAvailable={setGasBack}>
+                  <ToggleChip label="pH < 7.35" active={acidosis} onChange={setAcidosis} />
+                </ResultGroup>
               </div>
             </div>
           </div>

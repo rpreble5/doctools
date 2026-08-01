@@ -44,13 +44,13 @@ export function NumberField({
 }
 
 /**
- * A value that may not have been measured.
+ * A continuous value, set by dragging.
  *
- * "Not measured" is a real state, not zero. Scores that treat an absent
- * lab as normal read reassuringly low on a patient nobody worked up, so
- * empty stays empty and the tool says what is missing.
+ * Reserved for the few quantities that are genuinely continuous. Most
+ * clinical scores want a single bit at a cut point, and a slider for
+ * those is just a slower toggle.
  */
-export function OptionalNumberField({
+export function SliderField({
   label,
   value,
   onChange,
@@ -58,51 +58,41 @@ export function OptionalNumberField({
   max,
   step = 1,
   suffix,
+  note,
 }: {
   label: string;
-  value: number | undefined;
-  onChange: (next: number | undefined) => void;
-  min?: number;
-  max?: number;
+  value: number;
+  onChange: (next: number) => void;
+  min: number;
+  max: number;
   step?: number;
   suffix?: string;
+  /** Shown beside the value — usually what the number means for the score. */
+  note?: string;
 }) {
-  const measured = value !== undefined;
-
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="flex items-baseline gap-2">
+      <span className="flex items-baseline justify-between gap-3">
         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
           {label}
         </span>
-        {measured ? (
-          <button
-            type="button"
-            onClick={() => onChange(undefined)}
-            className="text-[10px] text-faint underline underline-offset-2 hover:text-soft"
-          >
-            clear
-          </button>
-        ) : null}
+        {note ? <span className="text-[11px] text-faint">{note}</span> : null}
       </span>
-      <span className="flex items-baseline gap-1.5">
-        <input
-          type="number"
-          inputMode="decimal"
-          placeholder="—"
-          value={measured ? value : ""}
-          min={min}
-          max={max}
-          step={step}
-          onChange={(e) =>
-            onChange(Number.isNaN(e.target.valueAsNumber) ? undefined : e.target.valueAsNumber)
-          }
-          className={`tnum w-16 border-b bg-transparent pb-1 font-mono text-[15px] tracking-[-0.02em] outline-none placeholder:text-faint focus:border-ink ${
-            measured ? "border-rule text-ink" : "border-dashed border-rule text-faint"
-          }`}
-        />
+      <span className="flex items-baseline gap-2">
+        <b className="tnum font-mono text-[22px] font-normal leading-none tracking-[-0.03em]">
+          {value}
+        </b>
         {suffix ? <span className="text-[11px] text-faint">{suffix}</span> : null}
       </span>
+      <input
+        type="range"
+        className="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(e.target.valueAsNumber)}
+      />
     </label>
   );
 }
@@ -176,6 +166,68 @@ export function FieldGroup({
         {label}
       </span>
       <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  );
+}
+
+/**
+ * A panel of results that either came back or did not.
+ *
+ * Grouped the way tests are ordered rather than the way a score lists
+ * them, so one tap covers a whole panel. Until it is available every
+ * item inside stays unmeasured — which is not the same as normal, and
+ * is what keeps the completeness warning honest.
+ */
+export function ResultGroup({
+  label,
+  available,
+  onAvailable,
+  children,
+}: {
+  label: string;
+  available: boolean;
+  onAvailable: (next: boolean) => void;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      <button
+        type="button"
+        aria-pressed={available}
+        onClick={() => onAvailable(!available)}
+        className="flex items-center gap-2.5 self-start text-left"
+      >
+        <span
+          className={`grid h-4 w-4 flex-none place-items-center border ${
+            available ? "border-ink bg-ink" : "border-rule"
+          }`}
+        >
+          {available ? (
+            <svg viewBox="0 0 10 8" className="h-2 w-2.5" aria-hidden="true">
+              <path
+                d="M1 4.2 3.6 6.8 9 1.4"
+                fill="none"
+                stroke="var(--bg)"
+                strokeWidth="1.8"
+              />
+            </svg>
+          ) : null}
+        </span>
+        <span
+          className={`text-[10px] font-semibold uppercase tracking-[0.12em] ${
+            available ? "text-ink" : "text-faint"
+          }`}
+        >
+          {label}
+        </span>
+        <span className="text-[11px] normal-case tracking-normal text-faint">
+          {available ? "back" : "not available"}
+        </span>
+      </button>
+
+      {available ? (
+        <div className="flex flex-wrap gap-2">{children}</div>
+      ) : null}
     </div>
   );
 }
