@@ -167,7 +167,7 @@ export function CapTool() {
               label="Risk class"
               value={port.riskClass}
               size="focal"
-              caption={inClassOne ? "class I by step one" : `${port.points} points`}
+              caption={inClassOne ? "without counting points" : `${port.points} points`}
             />
             <dl className="m-0 flex flex-wrap gap-x-10 gap-y-3 pb-1">
               <div className="flex flex-col">
@@ -191,7 +191,7 @@ export function CapTool() {
             value={port.points}
             bands={PSI_BANDS}
             bypassed={inClassOne}
-            bypassNote="Class I is decided by step one, not by points."
+            bypassNote="No points counted — PSI stops before this scale for a patient who clears the first step."
           />
 
           {/* --- factors: the list is both the input and the breakdown --- */}
@@ -253,13 +253,19 @@ export function CapTool() {
             <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
               {inClassOne ? (
                 <>
-                  <b className="font-semibold text-ink">Class I by step one.</b>{" "}
-                  Fifty or under, no listed comorbidity, mental status and vitals
-                  intact — no point count and no bloods needed.
+                  <b className="font-semibold text-ink">
+                    Class I, without counting anything.
+                  </b>{" "}
+                  PSI runs in two steps. Anyone 50 or under with none of the
+                  listed comorbidities and normal mental status and vitals is
+                  class I straight away — the points below never apply to them,
+                  and no bloods are needed to say so.
                 </>
               ) : (
                 <>
-                  <b className="font-semibold text-ink">Out of class I:</b>{" "}
+                  <b className="font-semibold text-ink">
+                    Past the first step, so the points decide:
+                  </b>{" "}
                   {blockers.join(", ").toLowerCase()}.
                 </>
               )}
