@@ -157,40 +157,42 @@ export function CapTool() {
       {/* ===================== SEVERITY ===================== */}
       <PanelRow>
         <Panel title="How sick — Pneumonia Severity Index" span={3}>
-          {/* --- verdict --- */}
-          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:items-end">
-            <div className="flex items-end gap-7">
-              <Figure
-                label="Risk class"
-                value={port.riskClass}
-                size="focal"
-                caption={inClassOne ? "class I by step one" : `${port.points} points`}
-              />
-              <dl className="m-0 flex flex-col gap-1.5 pb-1">
-                <div className="flex flex-col">
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
-                    Mortality
-                  </dt>
-                  <dd className="tnum m-0 font-mono text-[13px]">
-                    {port.mortalityBand}
-                  </dd>
-                </div>
-                <div className="flex flex-col">
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
-                    Site of care
-                  </dt>
-                  <dd className="m-0 text-[13px] font-medium">{port.siteOfCare}</dd>
-                </div>
-              </dl>
-            </div>
-
-            <BandBar
-              value={port.points}
-              bands={PSI_BANDS}
-              bypassed={inClassOne}
-              bypassNote="Class I is decided by step one, not by points."
+          {/* --- verdict ---
+              The summary sits on its own row. Sharing a row with the
+              line meant a longer site-of-care string widened the column
+              and shoved the line sideways, so it appeared to move for
+              reasons that had nothing to do with the score. --- */}
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+            <Figure
+              label="Risk class"
+              value={port.riskClass}
+              size="focal"
+              caption={inClassOne ? "class I by step one" : `${port.points} points`}
             />
+            <dl className="m-0 flex flex-wrap gap-x-10 gap-y-3 pb-1">
+              <div className="flex flex-col">
+                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                  Mortality
+                </dt>
+                <dd className="tnum m-0 font-mono text-[13px]">
+                  {port.mortalityBand}
+                </dd>
+              </div>
+              <div className="flex flex-col">
+                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                  Site of care
+                </dt>
+                <dd className="m-0 text-[13px] font-medium">{port.siteOfCare}</dd>
+              </div>
+            </dl>
           </div>
+
+          <BandBar
+            value={port.points}
+            bands={PSI_BANDS}
+            bypassed={inClassOne}
+            bypassNote="Class I is decided by step one, not by points."
+          />
 
           {/* --- factors: the list is both the input and the breakdown --- */}
           <div className="grid grid-cols-1 gap-x-10 gap-y-6 border-t border-hair pt-6 sm:grid-cols-2 xl:grid-cols-4">
