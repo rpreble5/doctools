@@ -43,6 +43,70 @@ export function NumberField({
   );
 }
 
+/**
+ * A value that may not have been measured.
+ *
+ * "Not measured" is a real state, not zero. Scores that treat an absent
+ * lab as normal read reassuringly low on a patient nobody worked up, so
+ * empty stays empty and the tool says what is missing.
+ */
+export function OptionalNumberField({
+  label,
+  value,
+  onChange,
+  min,
+  max,
+  step = 1,
+  suffix,
+}: {
+  label: string;
+  value: number | undefined;
+  onChange: (next: number | undefined) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+  suffix?: string;
+}) {
+  const measured = value !== undefined;
+
+  return (
+    <label className="flex flex-col gap-1.5">
+      <span className="flex items-baseline gap-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+          {label}
+        </span>
+        {measured ? (
+          <button
+            type="button"
+            onClick={() => onChange(undefined)}
+            className="text-[10px] text-faint underline underline-offset-2 hover:text-soft"
+          >
+            clear
+          </button>
+        ) : null}
+      </span>
+      <span className="flex items-baseline gap-1.5">
+        <input
+          type="number"
+          inputMode="decimal"
+          placeholder="—"
+          value={measured ? value : ""}
+          min={min}
+          max={max}
+          step={step}
+          onChange={(e) =>
+            onChange(Number.isNaN(e.target.valueAsNumber) ? undefined : e.target.valueAsNumber)
+          }
+          className={`tnum w-16 border-b bg-transparent pb-1 font-mono text-[15px] tracking-[-0.02em] outline-none placeholder:text-faint focus:border-ink ${
+            measured ? "border-rule text-ink" : "border-dashed border-rule text-faint"
+          }`}
+        />
+        {suffix ? <span className="text-[11px] text-faint">{suffix}</span> : null}
+      </span>
+    </label>
+  );
+}
+
 /** A binary fact about the patient. Selected state is weight, not colour. */
 export function ToggleChip({
   label,

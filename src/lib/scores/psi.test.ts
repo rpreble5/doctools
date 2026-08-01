@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { isClassOne, psi, type PsiInput } from "./psi";
+import {
+  classOneBlockers,
+  isClassOne,
+  psi,
+  psiCompleteness,
+  type PsiInput,
+} from "./psi";
 
 const young: PsiInput = {
   ageYears: 34,
@@ -39,6 +45,98 @@ describe("PSI step one", () => {
     expect(isClassOne({ ...young, pulse: 130 })).toBe(false);
     expect(isClassOne({ ...young, temperatureC: 40 })).toBe(false);
     expect(isClassOne({ ...young, temperatureC: 34.5 })).toBe(false);
+  });
+});
+
+describe("classOneBlockers", () => {
+  it("returns nothing for a patient who is in class I", () => {
+    expect(classOneBlockers(young)).toEqual([]);
+  });
+
+  it("names the single reason a patient falls out", () => {
+    expect(classOneBlockers({ ...young, ageYears: 62 })).toEqual(["Over 50"]);
+    expect(classOneBlockers({ ...young, heartFailure: true })).toEqual([
+      "Heart failure",
+    ]);
+  });
+
+  it("names every reason when there are several", () => {
+    const blockers = classOneBlockers({
+      ...young,
+      ageYears: 71,
+      renalDisease: true,
+      respiratoryRate: 32,
+    });
+    expect(blockers).toEqual([
+      "Over 50",
+      "Renal disease",
+      "Respiratory rate 30 or more",
+    ]);
+  });
+
+  it("agrees with isClassOne", () => {
+    expect(isClassOne({ ...young, pulse: 130 })).toBe(false);
+    expect(classOneBlockers({ ...young, pulse: 130 })).toContain(
+      "Pulse 125 or more",
+    );
+  });
+});
+
+describe("psiCompleteness", () => {
+  it("lists every unmeasured investigation when none are entered", () => {
+    const c = psiCompleteness({ ...young, ageYears: 68 });
+    expect(c.complete).toBe(false);
+    expect(c.missing.map((m) => m.label)).toEqual([
+      "Arterial pH",
+      "BUN",
+      "Sodium",
+      "Glucose",
+      "Haematocrit",
+      "PaO₂ or saturations",
+    ]);
+    // 30 + 20 + 20 + 10 + 10 + 10
+    expect(c.maxAdditionalPoints).toBe(100);
+  });
+
+  it("shows how much worse the class could be — the reason this exists", () => {
+    // 68 points on demographics alone reads class II, but unmeasured
+    // labs could carry it to 168, which is class V.
+    const c = psiCompleteness({ ...young, ageYears: 68 });
+    expect(psi({ ...young, ageYears: 68 }).riskClass).toBe("II");
+    expect(c.worstCaseClass).toBe("V");
+  });
+
+  it("counts either oxygenation measure as measured", () => {
+    const withSats = psiCompleteness({
+      ...young,
+      ageYears: 68,
+      oxygenSaturationPct: 94,
+    });
+    expect(withSats.missing.map((m) => m.label)).not.toContain(
+      "PaO₂ or saturations",
+    );
+
+    const withPao2 = psiCompleteness({ ...young, ageYears: 68, pao2MmHg: 80 });
+    expect(withPao2.missing.map((m) => m.label)).not.toContain(
+      "PaO₂ or saturations",
+    );
+  });
+
+  it("reports complete once everything is entered", () => {
+    const c = psiCompleteness({
+      ...young,
+      ageYears: 68,
+      arterialPh: 7.4,
+      bunMgDl: 12,
+      sodiumMmolL: 138,
+      glucoseMgDl: 100,
+      haematocritPct: 42,
+      oxygenSaturationPct: 96,
+    });
+    expect(c.complete).toBe(true);
+    expect(c.missing).toEqual([]);
+    expect(c.maxAdditionalPoints).toBe(0);
+    expect(c.worstCaseClass).toBe("II");
   });
 });
 

@@ -10,9 +10,22 @@ export interface TrajectoryStep {
 }
 
 /** What happens after the decision, and when to stop expecting it to. */
-export function Trajectory({ steps }: { steps: TrajectoryStep[] }) {
+export function Trajectory({
+  steps,
+  layout = "row",
+}: {
+  steps: TrajectoryStep[];
+  /** "row" spreads across a full-width panel; "stack" fits a single column. */
+  layout?: "row" | "stack";
+}) {
   return (
-    <ol className="m-0 grid list-none grid-cols-2 gap-6 p-0 lg:grid-cols-5">
+    <ol
+      className={`m-0 list-none p-0 ${
+        layout === "row"
+          ? "grid grid-cols-2 gap-6 lg:grid-cols-5"
+          : "flex flex-col gap-5"
+      }`}
+    >
       {steps.map((step) => (
         <li
           key={step.when}

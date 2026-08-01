@@ -9,12 +9,19 @@ export function Figure({
   value,
   unit,
   caption,
+  label,
   size = "panel",
   tone = "ink",
 }: {
   value: ReactNode;
   unit?: string;
   caption?: ReactNode;
+  /**
+   * Small qualifier above the figure, for values that are ambiguous
+   * alone — a roman numeral at display size reads as strokes, not a
+   * number, until something names it.
+   */
+  label?: string;
   size?: "panel" | "focal";
   tone?: "ink" | "accent";
 }) {
@@ -22,6 +29,11 @@ export function Figure({
 
   return (
     <div className="flex flex-col gap-1">
+      {label ? (
+        <span className="text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
+          {label}
+        </span>
+      ) : null}
       <p
         className={`tnum m-0 flex items-baseline gap-2 font-light leading-[0.85] tracking-[-0.045em] ${scale} ${
           tone === "accent" ? "text-accent" : "text-ink"
