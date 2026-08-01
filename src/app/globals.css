@@ -1,0 +1,133 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Design tokens.
+
+   Two rules hold the system together:
+
+   1. The interface is neutral. Chrome — labels, rules, borders,
+      headings, buttons, controls — uses only ink / soft / faint /
+      rule / hair / sunk. No exceptions.
+
+   2. Colour belongs to data. The --d-* ramp appears only inside
+      data marks: chart fills, criteria dots, band zones, the one
+      alarm rule. If a colour shows up on a label, it is a bug.
+
+   Restraint is the mechanism. In a muted system a single
+   saturated note carries weight that red-everywhere never does.
+   ============================================================ */
+
+:root {
+  /* ---- ground ---- */
+  --bg: #f1ede3;
+  --sunk: #e4dfd0;
+  --hair: #e0daca;
+  --rule: #cfc7b3;
+
+  /* ---- ink ---- */
+  --ink: #23201a;
+  --soft: #625c4e;
+  --faint: #9a9280;
+
+  /* ---- data marks only ---- */
+  --d-accent: #1f5f73;
+  --d-benefit: #4f7043;
+  --d-harm: #a8452c;
+  --d-contested: #5e4b8f;
+  --d-scale: #a2761a;
+  --d-alarm: #c6381a;
+
+  /* ---- spacing scale ---- */
+  --s1: 8px;
+  --s2: 16px;
+  --s3: 24px;
+  --s4: 40px;
+  --s5: 64px;
+
+  --font-sans-stack: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    sans-serif;
+  --font-mono-stack: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-sunk: var(--sunk);
+  --color-hair: var(--hair);
+  --color-rule: var(--rule);
+
+  --color-ink: var(--ink);
+  --color-soft: var(--soft);
+  --color-faint: var(--faint);
+
+  --color-accent: var(--d-accent);
+  --color-benefit: var(--d-benefit);
+  --color-harm: var(--d-harm);
+  --color-contested: var(--d-contested);
+  --color-scale: var(--d-scale);
+  --color-alarm: var(--d-alarm);
+
+  --font-sans: var(--font-sans-stack);
+  --font-mono: var(--font-mono-stack);
+}
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-sans-stack);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numerals line up wherever they are compared. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- range input, themed to the system ---- */
+.range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 20px;
+  background: transparent;
+  cursor: pointer;
+  margin: 0;
+}
+.range::-webkit-slider-runnable-track {
+  height: 1px;
+  background: var(--rule);
+}
+.range::-moz-range-track {
+  height: 1px;
+  background: var(--rule);
+}
+.range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  margin-top: -6.5px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 0;
+}
+.range::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--ink);
+  border: 0;
+}
+
+:where(button, input, a, [tabindex]):focus-visible {
+  outline: 2px solid var(--d-accent);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
