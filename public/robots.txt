@@ -1,4 +1,0 @@
-# Clinical content here is unreviewed and the site is being shared with a
-# small group rather than published. Remove this file when that changes.
-User-agent: *
-Disallow: /
