@@ -1,13 +1,25 @@
 /**
  * Pneumonia Severity Index (PSI / PORT).
  *
- * Fine MJ et al, NEJM 1997. Twenty variables against CURB-65's five,
- * and better at identifying the genuinely low-risk patient who can go
- * home — which is the decision it exists to support. Awaiting
- * attending review.
+ * Fine MJ et al, NEJM 1997. Derived on ~14,000 patients and validated
+ * on ~38,000, and the score the 2019 ATS/IDSA guideline recommends over
+ * CURB-65 for site of care — not because its discrimination is higher
+ * (0.80 against 0.76) but because cluster-randomised trials showed that
+ * using it safely reduces low-risk hospitalisations. Awaiting attending
+ * review.
+ *
+ * Two things it does not do, both of which matter:
+ *
+ * It predicts thirty-day mortality, not level of care. A patient can be
+ * class II and still need admission for oxygen, fluids, or because
+ * there is nobody at home. The guideline says this explicitly.
+ *
+ * It is dominated by age. A thirty-year-old with septic pneumonia can
+ * land in class II. Physiology has to be read on its own.
  *
  * Class I is assigned by the step-one algorithm rather than by points:
- * under 50, no listed comorbidity, normal mental status and vitals.
+ * fifty or under, no listed comorbidity, normal mental status and
+ * vitals.
  */
 
 export interface PsiInput {
@@ -55,26 +67,87 @@ export interface PsiResult {
   mortalityBand: string;
 }
 
-const hasListedComorbidity = (i: PsiInput): boolean =>
-  i.neoplasticDisease ||
-  i.liverDisease ||
-  i.heartFailure ||
-  i.cerebrovascularDisease ||
-  i.renalDisease;
-
 /** Step one: the low-risk patient who never needs the point count. */
 export function isClassOne(i: PsiInput): boolean {
-  return (
-    i.ageYears <= 50 &&
-    !hasListedComorbidity(i) &&
-    !i.alteredMentalStatus &&
-    i.pulse < 125 &&
-    i.respiratoryRate < 30 &&
-    i.systolicBp >= 90 &&
-    i.temperatureC >= 35 &&
-    i.temperatureC < 40
-  );
+  return classOneBlockers(i).length === 0;
 }
+
+/**
+ * What is keeping this patient out of class I. Empty means they are in
+ * it, and no laboratory work is needed to say so — which is the whole
+ * value of step one and the part every calculator skips.
+ */
+export function classOneBlockers(i: PsiInput): string[] {
+  const blockers: string[] = [];
+  if (i.ageYears > 50) blockers.push("Over 50");
+  if (i.neoplasticDisease) blockers.push("Neoplastic disease");
+  if (i.liverDisease) blockers.push("Liver disease");
+  if (i.heartFailure) blockers.push("Heart failure");
+  if (i.cerebrovascularDisease) blockers.push("Cerebrovascular disease");
+  if (i.renalDisease) blockers.push("Renal disease");
+  if (i.alteredMentalStatus) blockers.push("Altered mental status");
+  if (i.pulse >= 125) blockers.push("Pulse 125 or more");
+  if (i.respiratoryRate >= 30) blockers.push("Respiratory rate 30 or more");
+  if (i.systolicBp < 90) blockers.push("Systolic under 90");
+  if (i.temperatureC < 35 || i.temperatureC >= 40)
+    blockers.push("Temperature under 35 or 40 and over");
+  return blockers;
+}
+
+/**
+ * Investigations that carry points, and what each is worth at worst.
+ *
+ * This exists because of a real trap: an unmeasured value scores zero,
+ * so a patient worked up without labs reads reassuringly low. The tool
+ * has to be able to say "class II on what you have, but you have not
+ * measured the things that could make it class IV".
+ */
+const INVESTIGATIONS = [
+  { key: "arterialPh", label: "Arterial pH", maxPoints: 30 },
+  { key: "bunMgDl", label: "BUN", maxPoints: 20 },
+  { key: "sodiumMmolL", label: "Sodium", maxPoints: 20 },
+  { key: "glucoseMgDl", label: "Glucose", maxPoints: 10 },
+  { key: "haematocritPct", label: "Haematocrit", maxPoints: 10 },
+  { key: "oxygenation", label: "PaO₂ or saturations", maxPoints: 10 },
+] as const;
+
+export interface PsiCompleteness {
+  missing: { label: string; maxPoints: number }[];
+  maxAdditionalPoints: number;
+  /** The class this patient could reach if every missing value were abnormal. */
+  worstCaseClass: PsiClass;
+  complete: boolean;
+}
+
+export function psiCompleteness(input: PsiInput): PsiCompleteness {
+  const measured: Record<string, boolean> = {
+    arterialPh: input.arterialPh !== undefined,
+    bunMgDl: input.bunMgDl !== undefined,
+    sodiumMmolL: input.sodiumMmolL !== undefined,
+    glucoseMgDl: input.glucoseMgDl !== undefined,
+    haematocritPct: input.haematocritPct !== undefined,
+    oxygenation:
+      input.pao2MmHg !== undefined || input.oxygenSaturationPct !== undefined,
+  };
+
+  const missing = INVESTIGATIONS.filter((i) => !measured[i.key]).map((i) => ({
+    label: i.label,
+    maxPoints: i.maxPoints,
+  }));
+
+  const maxAdditionalPoints = missing.reduce((sum, m) => sum + m.maxPoints, 0);
+  const worstCasePoints = psi(input).points + maxAdditionalPoints;
+
+  return {
+    missing,
+    maxAdditionalPoints,
+    worstCaseClass: classFor(worstCasePoints),
+    complete: missing.length === 0,
+  };
+}
+
+const classFor = (points: number): PsiClass =>
+  points <= 70 ? "II" : points <= 90 ? "III" : points <= 130 ? "IV" : "V";
 
 export function psi(input: PsiInput): PsiResult {
   const contributions: PsiContribution[] = [];
