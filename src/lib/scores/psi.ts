@@ -148,6 +148,36 @@ export function findingsFromValues(v: PsiValues): PsiFindings {
    ------------------------------------------------------------------ */
 
 /**
+ * The findings that can put a patient out of class I.
+ *
+ * Worth naming, because the answer is not obvious from the score sheet:
+ * the gate is the five comorbidities, four vital signs and mental
+ * status. Nursing home residence, pleural effusion, oxygenation and
+ * every laboratory value are absent from it — those only begin to add
+ * points once a patient has already fallen out.
+ *
+ * So for anyone fifty or under, this list is the entire set of things
+ * still worth checking.
+ */
+export const STEP_ONE_FACTORS = [
+  "neoplasticDisease",
+  "liverDisease",
+  "heartFailure",
+  "cerebrovascularDisease",
+  "renalDisease",
+  "alteredMentalStatus",
+  "tachycardia",
+  "tachypnoea",
+  "hypotension",
+  "temperatureExtreme",
+] as const;
+
+export type StepOneFactor = (typeof STEP_ONE_FACTORS)[number];
+
+export const isStepOneFactor = (key: string): key is StepOneFactor =>
+  (STEP_ONE_FACTORS as readonly string[]).includes(key);
+
+/**
  * What is keeping this patient out of class I. Empty means they are in
  * it, and no laboratory work is needed to say so — which is the whole
  * value of step one and the part every calculator skips.

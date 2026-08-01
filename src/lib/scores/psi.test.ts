@@ -5,6 +5,8 @@ import {
   isClassOne,
   psi,
   investigationHeadroom,
+  isStepOneFactor,
+  STEP_ONE_FACTORS,
   type PsiFindings,
   type PsiValues,
 } from "./psi";
@@ -146,6 +148,32 @@ describe("classOneBlockers", () => {
     expect(isClassOne({ ...well, tachycardia: true })).toBe(false);
     expect(isClassOne({ ...well, hypotension: true })).toBe(false);
     expect(isClassOne({ ...well, temperatureExtreme: true })).toBe(false);
+  });
+});
+
+describe("STEP_ONE_FACTORS", () => {
+  it("holds exactly the findings that can put a patient out of class I", () => {
+    // Every listed factor, on its own, must break the gate.
+    for (const key of STEP_ONE_FACTORS) {
+      expect(isClassOne({ ...well, [key]: true })).toBe(false);
+    }
+  });
+
+  it("excludes the findings that only add points", () => {
+    // These score, but cannot move anyone out of class I.
+    for (const key of [
+      "nursingHomeResident",
+      "pleuralEffusion",
+      "hypoxaemia",
+      "acidosis",
+      "uraemia",
+      "hyponatraemia",
+      "hyperglycaemia",
+      "anaemia",
+    ]) {
+      expect(isStepOneFactor(key)).toBe(false);
+      expect(isClassOne({ ...well, [key]: true })).toBe(true);
+    }
   });
 });
 
