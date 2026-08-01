@@ -17,6 +17,13 @@ import { ToolFrame } from "@/components/shell/ToolFrame";
 
 import { asPercent, canChangeManagement, revise } from "@/lib/probability";
 import {
+  drip,
+  DRIP_MAJOR,
+  DRIP_MINOR,
+  DRIP_THRESHOLD,
+  type DripFindings,
+} from "@/lib/scores/drip";
+import {
   classOneBlockers,
   psi,
   investigationHeadroom,
@@ -33,6 +40,7 @@ import {
   meta,
   practiceGap,
   regimensFor,
+  resistanceSeam,
   stabilityCriteria,
   testLikelihoodRatios,
   trajectory,
@@ -40,6 +48,12 @@ import {
 } from "./content";
 
 type TestResult = "positive" | "negative";
+
+/** DRIP: one cut point at 4, so two bands. */
+const DRIP_BANDS = [
+  { upTo: 3, label: "Standard" },
+  { upTo: 14, label: "Broad" },
+];
 
 /** PSI risk classes by point total. Class I is decided before points. */
 const PSI_BANDS = [
@@ -84,6 +98,19 @@ export function CapTool() {
   const [anaemia, setAnaemia] = useState(false);
   const [acidosis, setAcidosis] = useState(false);
 
+  // ---- resistance ----
+  const [resistanceState, setResistanceState] = useState({
+    antibioticsWithin60Days: false,
+    tubeFeeding: false,
+    priorDrugResistantInfection: false,
+    chronicPulmonaryDisease: false,
+    hospitalisedWithin60Days: false,
+    poorFunctionalStatus: false,
+    mrsaColonisation: false,
+    woundCare: false,
+    gastricAcidSuppression: false,
+  });
+
   // ---- other panels ----
   const [comorbidTherapy, setComorbidTherapy] = useState(true);
   const [recentAntibiotics, setRecentAntibiotics] = useState(false);
@@ -125,6 +152,22 @@ export function CapTool() {
       uraemia, hyponatraemia, hyperglycaemia, anaemia, acidosis,
     ],
   );
+
+  // Long-term care residence appears in both scores. Enter it once.
+  const resistanceFindings: DripFindings = {
+    ...resistanceState,
+    longTermCare: nursingHomeResident,
+  };
+
+  const setResistanceFactor = (key: keyof DripFindings, next: boolean) => {
+    if (key === "longTermCare") {
+      setNursingHomeResident(next);
+      return;
+    }
+    setResistanceState((prev) => ({ ...prev, [key]: next }));
+  };
+
+  const resistance = drip(resistanceFindings);
 
   const port = psi(findings);
   const blockers = classOneBlockers(findings);
@@ -284,6 +327,97 @@ export function CapTool() {
           </div>
         </Panel>
       </PanelRow>
+      {/* ===================== RESISTANCE ===================== */}
+      <PanelRow>
+        <Panel title="Broad cover? — Drug Resistance in Pneumonia" span={3}>
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+            <Figure
+              label="DRIP"
+              value={resistance.points}
+              size="focal"
+              caption={resistance.highRisk ? "cover for resistant organisms" : "standard CAP cover"}
+            />
+            <dl className="m-0 flex flex-wrap gap-x-10 gap-y-3 pb-1">
+              <div className="flex flex-col">
+                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                  Threshold
+                </dt>
+                <dd className="tnum m-0 font-mono text-[13px]">{DRIP_THRESHOLD} or more</dd>
+              </div>
+              <div className="flex flex-col">
+                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                  If broad
+                </dt>
+                <dd className="m-0 text-[13px] font-medium">
+                  {resistance.highRisk ? "Add MRSA and antipseudomonal cover" : "Not indicated"}
+                </dd>
+              </div>
+            </dl>
+          </div>
+
+          <BandBar value={resistance.points} bands={DRIP_BANDS} bandNoun="" />
+
+          <div className="grid grid-cols-1 gap-x-10 gap-y-6 border-t border-hair pt-6 sm:grid-cols-2 xl:grid-cols-3">
+            <FactorGroup label="Major — 2 points each">
+              {DRIP_MAJOR.map((item) => (
+                <Factor
+                  key={item.key}
+                  label={item.label}
+                  points={item.points}
+                  active={resistanceFindings[item.key]}
+                  onToggle={(next) => setResistanceFactor(item.key, next)}
+                />
+              ))}
+            </FactorGroup>
+
+            <FactorGroup label="Minor — 1 point each">
+              {DRIP_MINOR.map((item) => (
+                <Factor
+                  key={item.key}
+                  label={item.label}
+                  points={item.points}
+                  active={resistanceFindings[item.key]}
+                  onToggle={(next) => setResistanceFactor(item.key, next)}
+                />
+              ))}
+            </FactorGroup>
+
+            <div className="flex flex-col gap-4">
+              <SeamNote seam={resistanceSeam} />
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2 border-t border-hair pt-4">
+            <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
+              {resistance.highRisk ? (
+                <>
+                  <b className="font-semibold text-ink">
+                    {resistance.points} points. Broaden.
+                  </b>{" "}
+                  At this threshold the score misses about 2 in 10 resistant
+                  cases and over-calls about 2 in 10 who are not.
+                </>
+              ) : (
+                <>
+                  <b className="font-semibold text-ink">
+                    {resistance.points} points. Standard cover.
+                  </b>{" "}
+                  {resistance.distanceToThreshold} more would cross the
+                  threshold. A negative here is the stronger result — it is
+                  right about 9 times in 10.
+                </>
+              )}
+            </p>
+            <p className="m-0 max-w-[80ch] text-[11.5px] leading-relaxed text-faint">
+              Long-term care residence is shared with the severity panel above —
+              entering it once feeds both scores. HCAP is not this: it was
+              retired in 2019, and applying it here would roughly treble
+              antipseudomonal prescribing rather than raise it by half.
+            </p>
+          </div>
+        </Panel>
+      </PanelRow>
+
       {/* ===================== DIAGNOSIS / THERAPY ===================== */}
       <PanelRow>
         <Panel title="Is it pneumonia">
