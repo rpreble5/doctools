@@ -167,7 +167,7 @@ export function CapTool() {
               label="Risk class"
               value={port.riskClass}
               size="focal"
-              caption={inClassOne ? "without counting points" : `${port.points} points`}
+              caption={inClassOne ? "no points needed" : `${port.points} points`}
             />
             <dl className="m-0 flex flex-wrap gap-x-10 gap-y-3 pb-1">
               <div className="flex flex-col">
@@ -191,7 +191,7 @@ export function CapTool() {
             value={port.points}
             bands={PSI_BANDS}
             bypassed={inClassOne}
-            bypassNote="No points counted — PSI stops before this scale for a patient who clears the first step."
+            bypassNote="Not scored. Nothing below changes this."
           />
 
           {/* --- factors: the list is both the input and the breakdown --- */}
@@ -215,8 +215,7 @@ export function CapTool() {
                 ]}
               />
               <p className="m-0 text-[11px] leading-relaxed text-faint">
-                The only continuous variable in the score — every year is a
-                point, and it is usually the largest single contribution.
+                Every year is a point. Usually the biggest single factor.
               </p>
             </div>
 
@@ -253,19 +252,14 @@ export function CapTool() {
             <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
               {inClassOne ? (
                 <>
-                  <b className="font-semibold text-ink">
-                    Class I, without counting anything.
-                  </b>{" "}
-                  PSI runs in two steps. Anyone 50 or under with none of the
-                  listed comorbidities and normal mental status and vitals is
-                  class I straight away — the points below never apply to them,
-                  and no bloods are needed to say so.
+                  <b className="font-semibold text-ink">Lowest risk. Stop here.</b>{" "}
+                  Under 50, no listed comorbidity, vitals and mental status
+                  normal. PSI does not count points for this patient, and no
+                  bloods are needed.
                 </>
               ) : (
                 <>
-                  <b className="font-semibold text-ink">
-                    Past the first step, so the points decide:
-                  </b>{" "}
+                  <b className="font-semibold text-ink">Counting points because of:</b>{" "}
                   {blockers.join(", ").toLowerCase()}.
                 </>
               )}
@@ -274,19 +268,17 @@ export function CapTool() {
             {!inClassOne && understated ? (
               <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
                 <b className="font-semibold text-ink">
-                  Class {port.riskClass} now, up to {headroom.worstCaseClass} with{" "}
-                  {headroom.points} points still unscored.
+                  Class {port.riskClass} now. Could reach {headroom.worstCaseClass}.
                 </b>{" "}
-                PSI cannot tell a normal{" "}
-                {headroom.unscored.map((u) => u.label).join(", ")} from one nobody
-                sent — both score nothing.
+                {headroom.points} points sit in labs you have not marked
+                ({headroom.unscored.map((u) => u.label).join(", ")}). A normal
+                result and a missing one score the same.
               </p>
             ) : null}
 
             <p className="m-0 max-w-[80ch] text-[11.5px] leading-relaxed text-faint">
-              Thirty-day mortality, not level of care. Oxygen, an inability to
-              keep orals down, or nobody at home outrank it and appear nowhere in
-              the score.
+              This predicts death at 30 days, not whether to admit. Oxygen,
+              oral intake and who is at home are not in it.
             </p>
           </div>
         </Panel>
