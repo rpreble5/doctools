@@ -18,7 +18,7 @@ import { asPercent, canChangeManagement, revise } from "@/lib/probability";
 import {
   classOneBlockers,
   psi,
-  psiCompleteness,
+  investigationHeadroom,
   type PsiFindings,
 } from "@/lib/scores/psi";
 
@@ -68,10 +68,7 @@ export function CapTool() {
   const [tachycardia, setTachycardia] = useState(false);
   const [pleuralEffusion, setPleuralEffusion] = useState(false);
 
-  // ---- results, grouped as they are ordered ----
-  const [chemistryBack, setChemistryBack] = useState(false);
-  const [countBack, setCountBack] = useState(false);
-  const [gasBack, setGasBack] = useState(false);
+  // ---- results ----
   const [uraemia, setUraemia] = useState(false);
   const [hyponatraemia, setHyponatraemia] = useState(false);
   const [hyperglycaemia, setHyperglycaemia] = useState(false);
@@ -104,13 +101,11 @@ export function CapTool() {
       tachycardia,
       pleuralEffusion,
       hypoxaemia: oxygenSaturationPct < 90,
-      // A panel that has not come back leaves its items undefined, so
-      // they read as unmeasured rather than silently as normal.
-      uraemia: chemistryBack ? uraemia : undefined,
-      hyponatraemia: chemistryBack ? hyponatraemia : undefined,
-      hyperglycaemia: chemistryBack ? hyperglycaemia : undefined,
-      anaemia: countBack ? anaemia : undefined,
-      acidosis: gasBack ? acidosis : undefined,
+      uraemia,
+      hyponatraemia,
+      hyperglycaemia,
+      anaemia,
+      acidosis,
     }),
     [
       ageYears, sex, nursingHomeResident,
@@ -118,16 +113,15 @@ export function CapTool() {
       cerebrovascularDisease, renalDisease,
       alteredMentalStatus, tachypnoea, hypotension, temperatureExtreme,
       tachycardia, pleuralEffusion, oxygenSaturationPct,
-      chemistryBack, countBack, gasBack,
       uraemia, hyponatraemia, hyperglycaemia, anaemia, acidosis,
     ],
   );
 
   const port = psi(findings);
   const blockers = classOneBlockers(findings);
-  const completeness = psiCompleteness(findings);
+  const headroom = investigationHeadroom(findings);
   const inClassOne = blockers.length === 0;
-  const understated = !completeness.complete && completeness.worstCaseClass !== port.riskClass;
+  const understated = !headroom.exhausted && headroom.worstCaseClass !== port.riskClass;
 
   const test = diagnosticTests.find((t) => t.id === testId) ?? diagnosticTests[0];
   const lr = useMemo(() => testLikelihoodRatios(test), [test]);
@@ -174,7 +168,7 @@ export function CapTool() {
                     {port.mortalityBand}
                   </dd>
                 </div>
-                <div className="flex items-baseline justify-between gap-3 border-b border-hair pb-1.5">
+                <div className="flex flex-col gap-0.5 border-b border-hair pb-1.5">
                   <dt className="text-[12px] text-soft">Site of care</dt>
                   <dd className="m-0 text-[13px] font-medium">
                     {port.siteOfCare}
@@ -231,21 +225,13 @@ export function CapTool() {
                   <Factor label="Pleural effusion" points={10} active={pleuralEffusion} onToggle={setPleuralEffusion} />
                 </FactorGroup>
 
-                <FactorGroup label="Chemistry" availability={{ available: chemistryBack, onAvailable: setChemistryBack }}>
-                  <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} disabled={!chemistryBack} />
-                  <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} disabled={!chemistryBack} />
-                  <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} disabled={!chemistryBack} />
+                <FactorGroup label="Results">
+                  <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} />
+                  <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} />
+                  <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} />
+                  <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} />
+                  <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} />
                 </FactorGroup>
-
-                <div className="flex flex-col gap-6">
-                  <FactorGroup label="Blood count" availability={{ available: countBack, onAvailable: setCountBack }}>
-                    <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} disabled={!countBack} />
-                  </FactorGroup>
-
-                  <FactorGroup label="Blood gas" availability={{ available: gasBack, onAvailable: setGasBack }}>
-                    <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} disabled={!gasBack} />
-                  </FactorGroup>
-                </div>
               </div>
 
               {/* --- the two things the number alone will not tell you --- */}
@@ -265,18 +251,15 @@ export function CapTool() {
                   )}
                 </p>
 
-                {!inClassOne && !completeness.complete ? (
+                {!inClassOne && understated ? (
                   <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
                     <b className="font-semibold text-ink">
-                      Class {port.riskClass} on what you have entered
-                      {understated ? (
-                        <>, and could be {completeness.worstCaseClass}</>
-                      ) : null}
-                      .
+                      Class {port.riskClass} now, up to {headroom.worstCaseClass}{" "}
+                      with {headroom.points} points still unscored.
                     </b>{" "}
-                    {completeness.missing.map((m) => m.label).join(", ")} not
-                    measured — an unmeasured value scores nothing, so a patient
-                    nobody worked up reads low.
+                    PSI cannot tell a normal {headroom.unscored.map((u) => u.label).join(", ")}{" "}
+                    from one nobody sent — both score nothing. If the bloods are
+                    not back, this class is a floor rather than an answer.
                   </p>
                 ) : null}
 

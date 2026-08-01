@@ -173,42 +173,50 @@ export const isClassOne = (f: PsiFindings): boolean =>
   classOneBlockers(f).length === 0;
 
 /* ------------------------------------------------------------------
-   Completeness
+   Investigation headroom
 
-   An unmeasured value scores nothing, so a patient nobody worked up
-   reads reassuringly low. The tool has to be able to say "class II on
-   what you have, but you have not measured the things that could make
-   it class IV".
+   PSI has no unmeasured state — it was derived on patients who had the
+   full workup, and an absent value simply scores nothing. That is a
+   quiet trap: a patient whose bloods are not back reads exactly like a
+   patient whose bloods came back clean.
+
+   The score cannot distinguish them, so the tool does not pretend to.
+   It reports how many points are still on the table and the class they
+   would reach, and leaves the reader to know which of the two they are
+   looking at.
    ------------------------------------------------------------------ */
 
 const INVESTIGATIONS = [
-  { key: "acidosis", label: "Arterial pH", maxPoints: 30 },
+  { key: "acidosis", label: "pH", maxPoints: 30 },
   { key: "uraemia", label: "BUN", maxPoints: 20 },
-  { key: "hyponatraemia", label: "Sodium", maxPoints: 20 },
-  { key: "hyperglycaemia", label: "Glucose", maxPoints: 10 },
-  { key: "anaemia", label: "Haematocrit", maxPoints: 10 },
+  { key: "hyponatraemia", label: "sodium", maxPoints: 20 },
+  { key: "hyperglycaemia", label: "glucose", maxPoints: 10 },
+  { key: "anaemia", label: "haematocrit", maxPoints: 10 },
 ] as const;
 
-export interface PsiCompleteness {
-  missing: { label: string; maxPoints: number }[];
-  maxAdditionalPoints: number;
-  /** The class this patient could reach if every missing value were abnormal. */
+export interface PsiHeadroom {
+  /** Investigations not currently scoring, and what each would add. */
+  unscored: { label: string; maxPoints: number }[];
+  points: number;
+  /** The class reached if every unscored investigation were abnormal. */
   worstCaseClass: PsiClass;
-  complete: boolean;
+  /** True when every investigation is already scoring. */
+  exhausted: boolean;
 }
 
-export function psiCompleteness(f: PsiFindings): PsiCompleteness {
-  const missing = INVESTIGATIONS.filter((i) => f[i.key] === undefined).map(
-    (i) => ({ label: i.label, maxPoints: i.maxPoints }),
-  );
+export function investigationHeadroom(f: PsiFindings): PsiHeadroom {
+  const unscored = INVESTIGATIONS.filter((i) => f[i.key] !== true).map((i) => ({
+    label: i.label,
+    maxPoints: i.maxPoints,
+  }));
 
-  const maxAdditionalPoints = missing.reduce((sum, m) => sum + m.maxPoints, 0);
+  const points = unscored.reduce((sum, u) => sum + u.maxPoints, 0);
 
   return {
-    missing,
-    maxAdditionalPoints,
-    worstCaseClass: classFor(psi(f).points + maxAdditionalPoints),
-    complete: missing.length === 0,
+    unscored,
+    points,
+    worstCaseClass: classFor(psi(f).points + points),
+    exhausted: unscored.length === 0,
   };
 }
 

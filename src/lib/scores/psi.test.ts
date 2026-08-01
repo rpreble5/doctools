@@ -4,7 +4,7 @@ import {
   findingsFromValues,
   isClassOne,
   psi,
-  psiCompleteness,
+  investigationHeadroom,
   type PsiFindings,
   type PsiValues,
 } from "./psi";
@@ -238,8 +238,8 @@ describe("PSI point scoring", () => {
    Completeness
    ================================================================ */
 
-describe("psiCompleteness", () => {
-  const noBloods: PsiFindings = {
+describe("investigationHeadroom", () => {
+  const noLabs: PsiFindings = {
     ...well,
     ageYears: 68,
     acidosis: undefined,
@@ -249,45 +249,58 @@ describe("psiCompleteness", () => {
     anaemia: undefined,
   };
 
-  it("lists every unmeasured investigation", () => {
-    const c = psiCompleteness(noBloods);
-    expect(c.complete).toBe(false);
-    expect(c.missing.map((m) => m.label)).toEqual([
-      "Arterial pH",
+  it("counts every investigation that is not scoring", () => {
+    const h = investigationHeadroom(noLabs);
+    expect(h.exhausted).toBe(false);
+    expect(h.unscored.map((u) => u.label)).toEqual([
+      "pH",
       "BUN",
-      "Sodium",
-      "Glucose",
-      "Haematocrit",
+      "sodium",
+      "glucose",
+      "haematocrit",
     ]);
-    expect(c.maxAdditionalPoints).toBe(90); // 30 + 20 + 20 + 10 + 10
+    expect(h.points).toBe(90); // 30 + 20 + 20 + 10 + 10
   });
 
-  it("shows how much worse the class could be — the reason this exists", () => {
-    expect(psi(noBloods).riskClass).toBe("II"); // 68 points
-    expect(psiCompleteness(noBloods).worstCaseClass).toBe("V"); // 68 + 90 = 158
+  it("treats a normal result the same as an absent one, because the score does", () => {
+    const allNormal = {
+      ...noLabs,
+      acidosis: false,
+      uraemia: false,
+      hyponatraemia: false,
+      hyperglycaemia: false,
+      anaemia: false,
+    };
+    expect(investigationHeadroom(allNormal).points).toBe(
+      investigationHeadroom(noLabs).points,
+    );
   });
 
-  it("shrinks as values are entered", () => {
-    const partial = { ...noBloods, uraemia: false, hyponatraemia: false };
-    const c = psiCompleteness(partial);
-    expect(c.missing.map((m) => m.label)).toEqual([
-      "Arterial pH",
-      "Glucose",
-      "Haematocrit",
+  it("shows the class still reachable — the reason this exists", () => {
+    expect(psi(noLabs).riskClass).toBe("II"); // 68 points
+    expect(investigationHeadroom(noLabs).worstCaseClass).toBe("V"); // 158
+  });
+
+  it("shrinks as abnormalities are marked", () => {
+    const h = investigationHeadroom({ ...noLabs, uraemia: true, acidosis: true });
+    expect(h.unscored.map((u) => u.label)).toEqual([
+      "sodium",
+      "glucose",
+      "haematocrit",
     ]);
-    expect(c.maxAdditionalPoints).toBe(50);
+    expect(h.points).toBe(40);
   });
 
-  it("counts a normal result as measured, not missing", () => {
-    const c = psiCompleteness({ ...noBloods, acidosis: false });
-    expect(c.missing.map((m) => m.label)).not.toContain("Arterial pH");
-  });
-
-  it("reports complete once everything is entered", () => {
-    const c = psiCompleteness({ ...well, ageYears: 68 });
-    expect(c.complete).toBe(true);
-    expect(c.missing).toEqual([]);
-    expect(c.maxAdditionalPoints).toBe(0);
-    expect(c.worstCaseClass).toBe("II");
+  it("is exhausted once every investigation scores", () => {
+    const h = investigationHeadroom({
+      ...noLabs,
+      acidosis: true,
+      uraemia: true,
+      hyponatraemia: true,
+      hyperglycaemia: true,
+      anaemia: true,
+    });
+    expect(h.exhausted).toBe(true);
+    expect(h.points).toBe(0);
   });
 });
