@@ -24,9 +24,12 @@ export function BandBar({
   bands,
   bypassed = false,
   bypassNote,
+  bandNoun = "class",
 }: {
   value: number;
   bands: Band[];
+  /** What the bands are called. PSI has classes; DRIP just has two sides. */
+  bandNoun?: string;
   /** The score does not apply — an algorithm has already decided. */
   bypassed?: boolean;
   bypassNote?: string;
@@ -112,7 +115,7 @@ export function BandBar({
         {bypassed
           ? bypassNote
           : hasNext
-            ? `${toNext} ${toNext === 1 ? "point" : "points"} from class ${bands[current + 1].label}`
+            ? `${toNext} ${toNext === 1 ? "point" : "points"} from ${bandNoun ? `${bandNoun} ` : ""}${bands[current + 1].label}`
             : "Top band"}
       </p>
     </div>

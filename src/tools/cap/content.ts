@@ -111,6 +111,27 @@ export function regimensFor({
   ];
 }
 
+/**
+ * The seam under DRIP: the score is the best published option, and the
+ * guideline endorses none of them.
+ */
+export const resistanceSeam: Seam = {
+  question: "Which risk factors should decide broad coverage?",
+  positions: [
+    {
+      who: "ATS/IDSA 2019",
+      stance:
+        "Retired HCAP and asked for locally validated risk factors. It endorses no published score, so the answer is meant to come from your own antibiogram.",
+    },
+    {
+      who: "DRIP",
+      stance:
+        "The best-validated published alternative — AUROC 0.88 against HCAP's 0.72, and a 49% rather than 300% increase in antipseudomonal use. Useful where no local rule exists.",
+    },
+  ],
+  note: "Neither position is wrong. If your hospital has a local rule, it wins; if it does not, DRIP is better than reasoning from HCAP out of habit.",
+};
+
 export const hcapNote =
   "Not HCAP. That category was retired in 2019 — nursing-home residence alone does not broaden coverage. Broaden for documented prior MRSA or Pseudomonas, or recent hospitalisation with parenteral antibiotics.";
 
