@@ -6,17 +6,11 @@ import { CompareBars } from "@/components/modules/CompareBars";
 import { CriteriaList } from "@/components/modules/CriteriaList";
 import { Figure } from "@/components/modules/Figure";
 import { IconArray, IconArrayKey } from "@/components/modules/IconArray";
-import { PointsBreakdown } from "@/components/modules/PointsBreakdown";
 import { ProbabilityBand } from "@/components/modules/ProbabilityBand";
 import { SeamNote } from "@/components/modules/SeamNote";
 import { Trajectory } from "@/components/modules/Trajectory";
-import {
-  FieldGroup,
-  ResultGroup,
-  Segmented,
-  SliderField,
-  ToggleChip,
-} from "@/components/modules/controls";
+import { Segmented, SliderField, ToggleChip } from "@/components/modules/controls";
+import { Factor, FactorGroup } from "@/components/modules/FactorList";
 import { Panel, PanelRow } from "@/components/shell/Panel";
 import { ToolFrame } from "@/components/shell/ToolFrame";
 
@@ -161,217 +155,143 @@ export function CapTool() {
       {/* ===================== SEVERITY ===================== */}
       <PanelRow>
         <Panel title="How sick — Pneumonia Severity Index" span={3}>
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[220px_minmax(0,1.1fr)_minmax(0,1fr)]">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[210px_minmax(0,1fr)]">
             {/* --- verdict --- */}
-            <div className="flex flex-col gap-5">
+            <div className="flex flex-col gap-4">
               <Figure
                 label="Risk class"
                 value={port.riskClass}
                 size="focal"
                 caption={
-                  inClassOne
-                    ? "by step one, no scoring needed"
-                    : `${port.points} points`
+                  inClassOne ? "class I by step one" : `${port.points} points`
                 }
               />
 
               <dl className="m-0 flex flex-col gap-2">
-                <div className="flex items-baseline justify-between gap-3 border-b border-hair pb-2">
-                  <dt className="text-[12.5px] text-soft">30-day mortality</dt>
-                  <dd className="tnum m-0 font-mono text-[14px]">
+                <div className="flex items-baseline justify-between gap-3 border-b border-hair pb-1.5">
+                  <dt className="text-[12px] text-soft">30-day mortality</dt>
+                  <dd className="tnum m-0 font-mono text-[13px]">
                     {port.mortalityBand}
                   </dd>
                 </div>
-                <div className="flex flex-col gap-1 border-b border-hair pb-2">
-                  <dt className="text-[12.5px] text-soft">Site of care</dt>
-                  <dd className="m-0 text-[15px] font-medium tracking-[-0.015em]">
+                <div className="flex items-baseline justify-between gap-3 border-b border-hair pb-1.5">
+                  <dt className="text-[12px] text-soft">Site of care</dt>
+                  <dd className="m-0 text-[13px] font-medium">
                     {port.siteOfCare}
                   </dd>
                 </div>
               </dl>
 
-              <p className="m-0 max-w-[42ch] text-[12px] leading-relaxed text-faint">
-                This is a thirty-day mortality estimate, not a level-of-care
-                decision. Oxygen, an inability to keep orals down, or nobody at
-                home outrank it, and none of them are in the score.
-              </p>
+              <SliderField
+                label="Age"
+                value={ageYears}
+                onChange={setAgeYears}
+                min={18}
+                max={100}
+                suffix="years"
+                note={`${sex === "male" ? ageYears : ageYears - 10} pts`}
+              />
+              <Segmented
+                value={sex}
+                onChange={setSex}
+                options={[
+                  { value: "male", label: "Male" },
+                  { value: "female", label: "Female" },
+                ]}
+              />
+              <SliderField
+                label="Saturations"
+                value={oxygenSaturationPct}
+                onChange={setOxygenSaturationPct}
+                min={70}
+                max={100}
+                suffix="%"
+                note={oxygenSaturationPct < 90 ? "+10" : "—"}
+              />
             </div>
 
-            {/* --- step one / completeness --- */}
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-3">
-                <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                  Step one
-                </p>
-                {inClassOne ? (
-                  <p className="m-0 max-w-[52ch] text-[13.5px] leading-relaxed text-ink">
-                    Class I on the step-one algorithm. No point count, and no
-                    bloods needed to say so — 50 or under, no listed
-                    comorbidity, mental status and vitals intact.
-                  </p>
-                ) : (
-                  <>
-                    <p className="m-0 max-w-[52ch] text-[13px] leading-relaxed text-soft">
-                      Out of class I, so the points below apply. What excludes
-                      this patient:
-                    </p>
-                    <CriteriaList
-                      items={blockers.map((label) => ({ label, met: true }))}
-                    />
-                  </>
-                )}
+            {/* --- factors: the list is both the input and the breakdown --- */}
+            <div className="flex flex-col gap-5">
+              <div className="grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2 xl:grid-cols-4">
+                <FactorGroup label="History">
+                  <Factor label="Nursing home" points={10} active={nursingHomeResident} onToggle={setNursingHomeResident} />
+                  <Factor label="Neoplastic" points={30} active={neoplasticDisease} onToggle={setNeoplasticDisease} />
+                  <Factor label="Liver" points={20} active={liverDisease} onToggle={setLiverDisease} />
+                  <Factor label="Heart failure" points={10} active={heartFailure} onToggle={setHeartFailure} />
+                  <Factor label="Cerebrovascular" points={10} active={cerebrovascularDisease} onToggle={setCerebrovascularDisease} />
+                  <Factor label="Renal" points={10} active={renalDisease} onToggle={setRenalDisease} />
+                </FactorGroup>
+
+                <FactorGroup label="Examination">
+                  <Factor label="Altered mental status" points={20} active={alteredMentalStatus} onToggle={setAlteredMentalStatus} />
+                  <Factor label="Resp rate ≥ 30" points={20} active={tachypnoea} onToggle={setTachypnoea} />
+                  <Factor label="Systolic < 90" points={20} active={hypotension} onToggle={setHypotension} />
+                  <Factor label="Temp < 35 or ≥ 40" points={15} active={temperatureExtreme} onToggle={setTemperatureExtreme} />
+                  <Factor label="Pulse ≥ 125" points={10} active={tachycardia} onToggle={setTachycardia} />
+                  <Factor label="Pleural effusion" points={10} active={pleuralEffusion} onToggle={setPleuralEffusion} />
+                </FactorGroup>
+
+                <FactorGroup label="Chemistry" availability={{ available: chemistryBack, onAvailable: setChemistryBack }}>
+                  <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} disabled={!chemistryBack} />
+                  <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} disabled={!chemistryBack} />
+                  <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} disabled={!chemistryBack} />
+                </FactorGroup>
+
+                <div className="flex flex-col gap-6">
+                  <FactorGroup label="Blood count" availability={{ available: countBack, onAvailable: setCountBack }}>
+                    <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} disabled={!countBack} />
+                  </FactorGroup>
+
+                  <FactorGroup label="Blood gas" availability={{ available: gasBack, onAvailable: setGasBack }}>
+                    <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} disabled={!gasBack} />
+                  </FactorGroup>
+                </div>
               </div>
 
-              {!inClassOne ? (
-                <div className="flex flex-col gap-3 border-t border-hair pt-5">
-                  <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                    What you have not measured
-                  </p>
-
-                  {completeness.complete ? (
-                    <p className="m-0 text-[13px] leading-relaxed text-soft">
-                      Every scored investigation is entered. The class stands on
-                      complete data.
-                    </p>
+              {/* --- the two things the number alone will not tell you --- */}
+              <div className="flex flex-col gap-2 border-t border-hair pt-4">
+                <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
+                  {inClassOne ? (
+                    <>
+                      <b className="font-semibold text-ink">Class I by step one.</b>{" "}
+                      Fifty or under, no listed comorbidity, mental status and
+                      vitals intact — no point count and no bloods needed.
+                    </>
                   ) : (
                     <>
-                      <p className="m-0 max-w-[52ch] text-[13.5px] leading-relaxed text-ink">
-                        Class {port.riskClass} on what you have entered.
-                        {understated ? (
-                          <>
-                            {" "}
-                            With the missing values abnormal it would be class{" "}
-                            <b className="font-semibold">
-                              {completeness.worstCaseClass}
-                            </b>
-                            .
-                          </>
-                        ) : null}
-                      </p>
-                      <CriteriaList
-                        items={completeness.missing.map((m) => ({
-                          label: m.label,
-                          met: false,
-                          value: `${m.maxPoints}`,
-                        }))}
-                      />
-                      <p className="m-0 max-w-[52ch] text-[11.5px] leading-relaxed text-faint">
-                        An unmeasured value scores nothing, so a patient nobody
-                        worked up reads low. The figures on the right are the
-                        most each could add.
-                      </p>
+                      <b className="font-semibold text-ink">Out of class I:</b>{" "}
+                      {blockers.join(", ").toLowerCase()}.
                     </>
                   )}
-                </div>
-              ) : null}
-            </div>
-
-            {/* --- breakdown --- */}
-            <div className="flex flex-col gap-3">
-              <p className="m-0 text-[10px] font-semibold uppercase tracking-[0.15em] text-faint">
-                What is driving it
-              </p>
-              {port.contributions.length ? (
-                <PointsBreakdown
-                  items={port.contributions}
-                  total={port.points}
-                />
-              ) : (
-                <p className="m-0 text-[13px] text-faint">
-                  Nothing scores. Class I by step one.
                 </p>
-              )}
-              {!inClassOne && port.contributions.length ? (
-                <p className="m-0 max-w-[46ch] text-[11.5px] leading-relaxed text-faint">
-                  Age is usually the longest bar, which is why this score
-                  under-reads a young patient who is physiologically unwell.
+
+                {!inClassOne && !completeness.complete ? (
+                  <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
+                    <b className="font-semibold text-ink">
+                      Class {port.riskClass} on what you have entered
+                      {understated ? (
+                        <>, and could be {completeness.worstCaseClass}</>
+                      ) : null}
+                      .
+                    </b>{" "}
+                    {completeness.missing.map((m) => m.label).join(", ")} not
+                    measured — an unmeasured value scores nothing, so a patient
+                    nobody worked up reads low.
+                  </p>
+                ) : null}
+
+                <p className="m-0 max-w-[80ch] text-[11.5px] leading-relaxed text-faint">
+                  Thirty-day mortality, not level of care. Oxygen, an inability
+                  to keep orals down, or nobody at home outrank it and appear
+                  nowhere in the score — and age is usually the largest single
+                  contribution, which is why a young patient who is
+                  physiologically unwell reads lower than they are.
                 </p>
-              ) : null}
-            </div>
-          </div>
-
-          {/* --- inputs --- */}
-          <div className="flex flex-col gap-3 border-t border-hair pt-8">
-            <p className="m-0 max-w-[74ch] text-[12px] leading-relaxed text-faint">
-              Age and saturations are the only values the score uses
-              continuously. Everything else is a single bit at a published cut
-              point, so it is a toggle that starts normal — tap only what is
-              abnormal.
-            </p>
-
-            <div className="grid grid-cols-1 gap-8 pt-2 lg:grid-cols-4">
-              <div className="flex flex-col gap-6">
-                <SliderField
-                  label="Age"
-                  value={ageYears}
-                  onChange={setAgeYears}
-                  min={18}
-                  max={100}
-                  suffix="years"
-                  note={`${sex === "male" ? ageYears : ageYears - 10} pts`}
-                />
-                <SliderField
-                  label="Saturations"
-                  value={oxygenSaturationPct}
-                  onChange={setOxygenSaturationPct}
-                  min={70}
-                  max={100}
-                  suffix="%"
-                  note={oxygenSaturationPct < 90 ? "under 90 — 10 pts" : "at or above 90"}
-                />
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                    Sex
-                  </span>
-                  <Segmented
-                    value={sex}
-                    onChange={setSex}
-                    options={[
-                      { value: "male", label: "Male" },
-                      { value: "female", label: "Female" },
-                    ]}
-                  />
-                </div>
-              </div>
-
-              <FieldGroup label="History">
-                <ToggleChip label="Nursing home" active={nursingHomeResident} onChange={setNursingHomeResident} />
-                <ToggleChip label="Neoplastic" active={neoplasticDisease} onChange={setNeoplasticDisease} />
-                <ToggleChip label="Liver" active={liverDisease} onChange={setLiverDisease} />
-                <ToggleChip label="Heart failure" active={heartFailure} onChange={setHeartFailure} />
-                <ToggleChip label="Cerebrovascular" active={cerebrovascularDisease} onChange={setCerebrovascularDisease} />
-                <ToggleChip label="Renal" active={renalDisease} onChange={setRenalDisease} />
-              </FieldGroup>
-
-              <FieldGroup label="Examination">
-                <ToggleChip label="Altered mental status" active={alteredMentalStatus} onChange={setAlteredMentalStatus} />
-                <ToggleChip label="Resp rate ≥ 30" active={tachypnoea} onChange={setTachypnoea} />
-                <ToggleChip label="Systolic < 90" active={hypotension} onChange={setHypotension} />
-                <ToggleChip label="Temp < 35 or ≥ 40" active={temperatureExtreme} onChange={setTemperatureExtreme} />
-                <ToggleChip label="Pulse ≥ 125" active={tachycardia} onChange={setTachycardia} />
-                <ToggleChip label="Pleural effusion" active={pleuralEffusion} onChange={setPleuralEffusion} />
-              </FieldGroup>
-
-              <div className="flex flex-col gap-5">
-                <ResultGroup label="Chemistry" available={chemistryBack} onAvailable={setChemistryBack}>
-                  <ToggleChip label="BUN ≥ 30" active={uraemia} onChange={setUraemia} />
-                  <ToggleChip label="Sodium < 130" active={hyponatraemia} onChange={setHyponatraemia} />
-                  <ToggleChip label="Glucose ≥ 250" active={hyperglycaemia} onChange={setHyperglycaemia} />
-                </ResultGroup>
-
-                <ResultGroup label="Blood count" available={countBack} onAvailable={setCountBack}>
-                  <ToggleChip label="Haematocrit < 30" active={anaemia} onChange={setAnaemia} />
-                </ResultGroup>
-
-                <ResultGroup label="Blood gas" available={gasBack} onAvailable={setGasBack}>
-                  <ToggleChip label="pH < 7.35" active={acidosis} onChange={setAcidosis} />
-                </ResultGroup>
               </div>
             </div>
           </div>
         </Panel>
       </PanelRow>
-
       {/* ===================== DIAGNOSIS / THERAPY ===================== */}
       <PanelRow>
         <Panel title="Is it pneumonia">
