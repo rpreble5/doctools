@@ -191,7 +191,7 @@ export function CapTool() {
             value={port.points}
             bands={PSI_BANDS}
             bypassed={inClassOne}
-            bypassNote="Not scored. Nothing below changes this."
+            bypassNote="Not scored yet. Any factor still in black would change that."
           />
 
           {/* --- factors: the list is both the input and the breakdown --- */}
@@ -220,7 +220,7 @@ export function CapTool() {
             </div>
 
             <FactorGroup label="History">
-              <Factor label="Nursing home" points={10} active={nursingHomeResident} onToggle={setNursingHomeResident} />
+              <Factor label="Nursing home" points={10} active={nursingHomeResident} onToggle={setNursingHomeResident} inert={inClassOne} />
               <Factor label="Neoplastic" points={30} active={neoplasticDisease} onToggle={setNeoplasticDisease} />
               <Factor label="Liver" points={20} active={liverDisease} onToggle={setLiverDisease} />
               <Factor label="Heart failure" points={10} active={heartFailure} onToggle={setHeartFailure} />
@@ -234,16 +234,16 @@ export function CapTool() {
               <Factor label="Systolic < 90" points={20} active={hypotension} onToggle={setHypotension} />
               <Factor label="Temp < 35 or ≥ 40" points={15} active={temperatureExtreme} onToggle={setTemperatureExtreme} />
               <Factor label="Pulse ≥ 125" points={10} active={tachycardia} onToggle={setTachycardia} />
-              <Factor label="SpO₂ < 90 or PaO₂ < 60" points={10} active={hypoxaemia} onToggle={setHypoxaemia} />
-              <Factor label="Pleural effusion" points={10} active={pleuralEffusion} onToggle={setPleuralEffusion} />
+              <Factor label="SpO₂ < 90 or PaO₂ < 60" points={10} active={hypoxaemia} onToggle={setHypoxaemia} inert={inClassOne} />
+              <Factor label="Pleural effusion" points={10} active={pleuralEffusion} onToggle={setPleuralEffusion} inert={inClassOne} />
             </FactorGroup>
 
             <FactorGroup label="Results">
-              <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} />
-              <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} />
-              <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} />
-              <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} />
-              <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} />
+              <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} inert={inClassOne} />
+              <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} inert={inClassOne} />
+              <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} inert={inClassOne} />
+              <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} inert={inClassOne} />
+              <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} inert={inClassOne} />
             </FactorGroup>
           </div>
 
@@ -252,9 +252,10 @@ export function CapTool() {
             <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
               {inClassOne ? (
                 <>
-                  <b className="font-semibold text-ink">Lowest risk. Stop here.</b>{" "}
-                  Under 50, no listed comorbidity, vitals and mental status
-                  normal. PSI does not count points for this patient, and no
+                  <b className="font-semibold text-ink">Class I — lowest risk.</b>{" "}
+                  Only the factors still in black can change this: the five
+                  comorbidities, the four vital signs and mental status. Greyed
+                  factors score nothing unless one of those turns up, so no
                   bloods are needed.
                 </>
               ) : (
