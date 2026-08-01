@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 
 import { CompareBars } from "@/components/modules/CompareBars";
 import { CriteriaList } from "@/components/modules/CriteriaList";
+import { BandBar } from "@/components/modules/BandBar";
 import { Figure } from "@/components/modules/Figure";
 import { IconArray, IconArrayKey } from "@/components/modules/IconArray";
 import { ProbabilityBand } from "@/components/modules/ProbabilityBand";
@@ -40,6 +41,14 @@ import {
 
 type TestResult = "positive" | "negative";
 
+/** PSI risk classes by point total. Class I is decided before points. */
+const PSI_BANDS = [
+  { upTo: 70, label: "II" },
+  { upTo: 90, label: "III" },
+  { upTo: 130, label: "IV" },
+  { upTo: 180, label: "V" },
+];
+
 export function CapTool() {
   /*
    * Everything except age and saturations is a single bit at a
@@ -49,7 +58,7 @@ export function CapTool() {
 
   // ---- continuous ----
   const [ageYears, setAgeYears] = useState(65);
-  const [oxygenSaturationPct, setOxygenSaturationPct] = useState(96);
+  const [hypoxaemia, setHypoxaemia] = useState(false);
   const [sex, setSex] = useState<"male" | "female">("male");
 
   // ---- history ----
@@ -100,7 +109,7 @@ export function CapTool() {
       temperatureExtreme,
       tachycardia,
       pleuralEffusion,
-      hypoxaemia: oxygenSaturationPct < 90,
+      hypoxaemia,
       uraemia,
       hyponatraemia,
       hyperglycaemia,
@@ -112,7 +121,7 @@ export function CapTool() {
       neoplasticDisease, liverDisease, heartFailure,
       cerebrovascularDisease, renalDisease,
       alteredMentalStatus, tachypnoea, hypotension, temperatureExtreme,
-      tachycardia, pleuralEffusion, oxygenSaturationPct,
+      tachycardia, pleuralEffusion, hypoxaemia,
       uraemia, hyponatraemia, hyperglycaemia, anaemia, acidosis,
     ],
   );
@@ -138,7 +147,6 @@ export function CapTool() {
 
   const caseFields = [
     { label: "Age", value: ageYears },
-    { label: "SpO₂", value: `${oxygenSaturationPct}%` },
     { label: "Abnormal", value: abnormalFindings },
     { label: "PSI", value: port.riskClass },
     { label: "Points", value: port.points },
@@ -149,33 +157,44 @@ export function CapTool() {
       {/* ===================== SEVERITY ===================== */}
       <PanelRow>
         <Panel title="How sick — Pneumonia Severity Index" span={3}>
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-[210px_minmax(0,1fr)]">
-            {/* --- verdict --- */}
-            <div className="flex flex-col gap-4">
+          {/* --- verdict --- */}
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,300px)_minmax(0,1fr)] lg:items-end">
+            <div className="flex items-end gap-7">
               <Figure
                 label="Risk class"
                 value={port.riskClass}
                 size="focal"
-                caption={
-                  inClassOne ? "class I by step one" : `${port.points} points`
-                }
+                caption={inClassOne ? "class I by step one" : `${port.points} points`}
               />
-
-              <dl className="m-0 flex flex-col gap-2">
-                <div className="flex items-baseline justify-between gap-3 border-b border-hair pb-1.5">
-                  <dt className="text-[12px] text-soft">30-day mortality</dt>
+              <dl className="m-0 flex flex-col gap-1.5 pb-1">
+                <div className="flex flex-col">
+                  <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                    Mortality
+                  </dt>
                   <dd className="tnum m-0 font-mono text-[13px]">
                     {port.mortalityBand}
                   </dd>
                 </div>
-                <div className="flex flex-col gap-0.5 border-b border-hair pb-1.5">
-                  <dt className="text-[12px] text-soft">Site of care</dt>
-                  <dd className="m-0 text-[13px] font-medium">
-                    {port.siteOfCare}
-                  </dd>
+                <div className="flex flex-col">
+                  <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                    Site of care
+                  </dt>
+                  <dd className="m-0 text-[13px] font-medium">{port.siteOfCare}</dd>
                 </div>
               </dl>
+            </div>
 
+            <BandBar
+              value={port.points}
+              bands={PSI_BANDS}
+              bypassed={inClassOne}
+              bypassNote="Class I is decided by step one, not by points."
+            />
+          </div>
+
+          {/* --- factors: the list is both the input and the breakdown --- */}
+          <div className="grid grid-cols-1 gap-x-10 gap-y-6 border-t border-hair pt-6 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="flex flex-col gap-4">
               <SliderField
                 label="Age"
                 value={ageYears}
@@ -193,85 +212,74 @@ export function CapTool() {
                   { value: "female", label: "Female" },
                 ]}
               />
-              <SliderField
-                label="Saturations"
-                value={oxygenSaturationPct}
-                onChange={setOxygenSaturationPct}
-                min={70}
-                max={100}
-                suffix="%"
-                note={oxygenSaturationPct < 90 ? "+10" : "—"}
-              />
+              <p className="m-0 text-[11px] leading-relaxed text-faint">
+                The only continuous variable in the score — every year is a
+                point, and it is usually the largest single contribution.
+              </p>
             </div>
 
-            {/* --- factors: the list is both the input and the breakdown --- */}
-            <div className="flex flex-col gap-5">
-              <div className="grid grid-cols-1 gap-x-10 gap-y-6 sm:grid-cols-2 xl:grid-cols-4">
-                <FactorGroup label="History">
-                  <Factor label="Nursing home" points={10} active={nursingHomeResident} onToggle={setNursingHomeResident} />
-                  <Factor label="Neoplastic" points={30} active={neoplasticDisease} onToggle={setNeoplasticDisease} />
-                  <Factor label="Liver" points={20} active={liverDisease} onToggle={setLiverDisease} />
-                  <Factor label="Heart failure" points={10} active={heartFailure} onToggle={setHeartFailure} />
-                  <Factor label="Cerebrovascular" points={10} active={cerebrovascularDisease} onToggle={setCerebrovascularDisease} />
-                  <Factor label="Renal" points={10} active={renalDisease} onToggle={setRenalDisease} />
-                </FactorGroup>
+            <FactorGroup label="History">
+              <Factor label="Nursing home" points={10} active={nursingHomeResident} onToggle={setNursingHomeResident} />
+              <Factor label="Neoplastic" points={30} active={neoplasticDisease} onToggle={setNeoplasticDisease} />
+              <Factor label="Liver" points={20} active={liverDisease} onToggle={setLiverDisease} />
+              <Factor label="Heart failure" points={10} active={heartFailure} onToggle={setHeartFailure} />
+              <Factor label="Cerebrovascular" points={10} active={cerebrovascularDisease} onToggle={setCerebrovascularDisease} />
+              <Factor label="Renal" points={10} active={renalDisease} onToggle={setRenalDisease} />
+            </FactorGroup>
 
-                <FactorGroup label="Examination">
-                  <Factor label="Altered mental status" points={20} active={alteredMentalStatus} onToggle={setAlteredMentalStatus} />
-                  <Factor label="Resp rate ≥ 30" points={20} active={tachypnoea} onToggle={setTachypnoea} />
-                  <Factor label="Systolic < 90" points={20} active={hypotension} onToggle={setHypotension} />
-                  <Factor label="Temp < 35 or ≥ 40" points={15} active={temperatureExtreme} onToggle={setTemperatureExtreme} />
-                  <Factor label="Pulse ≥ 125" points={10} active={tachycardia} onToggle={setTachycardia} />
-                  <Factor label="Pleural effusion" points={10} active={pleuralEffusion} onToggle={setPleuralEffusion} />
-                </FactorGroup>
+            <FactorGroup label="Examination">
+              <Factor label="Altered mental status" points={20} active={alteredMentalStatus} onToggle={setAlteredMentalStatus} />
+              <Factor label="Resp rate ≥ 30" points={20} active={tachypnoea} onToggle={setTachypnoea} />
+              <Factor label="Systolic < 90" points={20} active={hypotension} onToggle={setHypotension} />
+              <Factor label="Temp < 35 or ≥ 40" points={15} active={temperatureExtreme} onToggle={setTemperatureExtreme} />
+              <Factor label="Pulse ≥ 125" points={10} active={tachycardia} onToggle={setTachycardia} />
+              <Factor label="SpO₂ < 90 or PaO₂ < 60" points={10} active={hypoxaemia} onToggle={setHypoxaemia} />
+              <Factor label="Pleural effusion" points={10} active={pleuralEffusion} onToggle={setPleuralEffusion} />
+            </FactorGroup>
 
-                <FactorGroup label="Results">
-                  <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} />
-                  <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} />
-                  <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} />
-                  <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} />
-                  <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} />
-                </FactorGroup>
-              </div>
+            <FactorGroup label="Results">
+              <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} />
+              <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} />
+              <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} />
+              <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} />
+              <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} />
+            </FactorGroup>
+          </div>
 
-              {/* --- the two things the number alone will not tell you --- */}
-              <div className="flex flex-col gap-2 border-t border-hair pt-4">
-                <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
-                  {inClassOne ? (
-                    <>
-                      <b className="font-semibold text-ink">Class I by step one.</b>{" "}
-                      Fifty or under, no listed comorbidity, mental status and
-                      vitals intact — no point count and no bloods needed.
-                    </>
-                  ) : (
-                    <>
-                      <b className="font-semibold text-ink">Out of class I:</b>{" "}
-                      {blockers.join(", ").toLowerCase()}.
-                    </>
-                  )}
-                </p>
+          {/* --- what the number will not tell you --- */}
+          <div className="flex flex-col gap-2 border-t border-hair pt-4">
+            <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
+              {inClassOne ? (
+                <>
+                  <b className="font-semibold text-ink">Class I by step one.</b>{" "}
+                  Fifty or under, no listed comorbidity, mental status and vitals
+                  intact — no point count and no bloods needed.
+                </>
+              ) : (
+                <>
+                  <b className="font-semibold text-ink">Out of class I:</b>{" "}
+                  {blockers.join(", ").toLowerCase()}.
+                </>
+              )}
+            </p>
 
-                {!inClassOne && understated ? (
-                  <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
-                    <b className="font-semibold text-ink">
-                      Class {port.riskClass} now, up to {headroom.worstCaseClass}{" "}
-                      with {headroom.points} points still unscored.
-                    </b>{" "}
-                    PSI cannot tell a normal {headroom.unscored.map((u) => u.label).join(", ")}{" "}
-                    from one nobody sent — both score nothing. If the bloods are
-                    not back, this class is a floor rather than an answer.
-                  </p>
-                ) : null}
+            {!inClassOne && understated ? (
+              <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
+                <b className="font-semibold text-ink">
+                  Class {port.riskClass} now, up to {headroom.worstCaseClass} with{" "}
+                  {headroom.points} points still unscored.
+                </b>{" "}
+                PSI cannot tell a normal{" "}
+                {headroom.unscored.map((u) => u.label).join(", ")} from one nobody
+                sent — both score nothing.
+              </p>
+            ) : null}
 
-                <p className="m-0 max-w-[80ch] text-[11.5px] leading-relaxed text-faint">
-                  Thirty-day mortality, not level of care. Oxygen, an inability
-                  to keep orals down, or nobody at home outrank it and appear
-                  nowhere in the score — and age is usually the largest single
-                  contribution, which is why a young patient who is
-                  physiologically unwell reads lower than they are.
-                </p>
-              </div>
-            </div>
+            <p className="m-0 max-w-[80ch] text-[11.5px] leading-relaxed text-faint">
+              Thirty-day mortality, not level of care. Oxygen, an inability to
+              keep orals down, or nobody at home outrank it and appear nowhere in
+              the score.
+            </p>
           </div>
         </Panel>
       </PanelRow>
@@ -414,16 +422,7 @@ export function CapTool() {
                 tone="benefit"
                 items={stabilityCriteria.map((label) => ({
                   label,
-                  met:
-                    label !== "Saturations 90% or more" ||
-                    (oxygenSaturationPct ?? 0) >= 90,
-                  borderline:
-                    label === "Saturations 90% or more" &&
-                    (oxygenSaturationPct ?? 100) < 95,
-                  value:
-                    label === "Saturations 90% or more"
-                      ? String(oxygenSaturationPct ?? "—")
-                      : undefined,
+                  met: label !== "Saturations 90% or more" || !hypoxaemia,
                 }))}
               />
             </div>
