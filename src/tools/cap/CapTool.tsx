@@ -6,6 +6,7 @@ import { CompareBars } from "@/components/modules/CompareBars";
 import { CriteriaList } from "@/components/modules/CriteriaList";
 import { BandBar } from "@/components/modules/BandBar";
 import { Figure } from "@/components/modules/Figure";
+import { ScoreStrip } from "@/components/modules/ScoreStrip";
 import { Proportion } from "@/components/modules/Proportion";
 import { IconArray, IconArrayKey } from "@/components/modules/IconArray";
 import { ProbabilityBand } from "@/components/modules/ProbabilityBand";
@@ -17,7 +18,7 @@ import { Panel, PanelRow } from "@/components/shell/Panel";
 import { ToolFrame } from "@/components/shell/ToolFrame";
 
 import { asPercent, canChangeManagement, revise } from "@/lib/probability";
-import { drip, DRIP_THRESHOLD } from "@/lib/scores/drip";
+import { drip } from "@/lib/scores/drip";
 import {
   severeCap,
   SEVERE_CAP_PERFORMANCE,
@@ -131,39 +132,145 @@ export function CapTool() {
 
   const caseFields = [
     { label: "Age", value: caseState.ageYears },
-    { label: "Abnormal", value: abnormalFindings },
-    { label: "PSI", value: port.riskClass },
-    { label: "Points", value: port.points },
+    { label: "Findings", value: abnormalFindings },
   ];
 
   return (
     <ToolFrame meta={meta} caseFields={caseFields}>
-      {/* ===================== ANSWERS ===================== */}
+      {/* ===================== LIVE SCORES =====================
+          Directly above the inputs, so a toggle and its consequence
+          are on screen together. Detail lives below; this is the part
+          you watch while entering. */}
       <PanelRow>
-        <Panel title="How sick — Pneumonia Severity Index" span={2}>
-          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
-            <Figure
-              label="Risk class"
+        <Panel title="Scores" span={3}>
+          <div className="grid grid-cols-1 gap-x-12 gap-y-6 sm:grid-cols-3">
+            <ScoreStrip
+              label="PSI — how sick"
               value={port.riskClass}
-              size="focal"
-              caption={inClassOne ? "no points needed" : `${port.points} points`}
+              detail={inClassOne ? "no points" : `${port.points} pts`}
+              verdict={`${port.siteOfCare} · ${port.mortalityBand} at 30 days`}
+              progress={port.points / 180}
+              thresholds={[70 / 180, 90 / 180, 130 / 180]}
+              bypassed={inClassOne}
+              flashOn={`${port.riskClass}:${port.points}`}
             />
-            <dl className="m-0 flex flex-wrap gap-x-10 gap-y-3 pb-1">
-              <div className="flex flex-col">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
-                  Mortality
-                </dt>
-                <dd className="tnum m-0 font-mono text-[13px]">{port.mortalityBand}</dd>
+
+            <ScoreStrip
+              label="DRIP — broad cover"
+              value={resistance.points}
+              detail={resistance.highRisk ? "broaden" : "standard"}
+              verdict={
+                resistance.highRisk
+                  ? "Add MRSA and antipseudomonal cover"
+                  : `${resistance.distanceToThreshold} more would cross`
+              }
+              progress={resistance.points / 14}
+              thresholds={[4 / 14]}
+              flashOn={resistance.points}
+            />
+
+            <ScoreStrip
+              label="Severe CAP — steroids"
+              value={severity.severe ? "Severe" : "Not severe"}
+              detail={
+                severity.metBy === "major"
+                  ? "major criterion"
+                  : `${severity.minorCount} of 3 minor`
+              }
+              verdict={
+                steroids.verdict === "indicated"
+                  ? "Hydrocortisone 200 mg/day, days 1–4"
+                  : steroids.verdict === "outside-trial"
+                    ? "Outside the trial evidence"
+                    : "Steroids not indicated"
+              }
+              progress={severity.severe ? 1 : severity.minorCount / 3}
+              segments={3}
+              filled={severity.metBy === "major" ? 3 : severity.minorCount}
+              flashOn={`${severity.severe}:${severity.minorCount}:${steroids.verdict}`}
+            />
+          </div>
+        </Panel>
+      </PanelRow>
+
+      {/* ===================== THE CASE ===================== */}
+      <PanelRow>
+        <Panel title="The case" span={3}>
+          <div className="flex flex-wrap items-end justify-between gap-5">
+            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+              <div className="w-[210px]">
+                <SliderField
+                  label="Age"
+                  value={caseState.ageYears}
+                  onChange={(next) => setFact("ageYears", next)}
+                  min={18}
+                  max={100}
+                  suffix="years"
+                  note={`PSI ${caseState.sex === "male" ? caseState.ageYears : caseState.ageYears - 10}`}
+                />
               </div>
-              <div className="flex flex-col">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
-                  Site of care
-                </dt>
-                <dd className="m-0 text-[13px] font-medium">{port.siteOfCare}</dd>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                  Sex
+                </span>
+                <Segmented
+                  value={caseState.sex}
+                  onChange={(next) => setFact("sex", next)}
+                  options={[
+                    { value: "male", label: "Male" },
+                    { value: "female", label: "Female" },
+                  ]}
+                />
               </div>
-            </dl>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                Show
+              </span>
+              <Segmented
+                value={focus}
+                onChange={setFocus}
+                options={[
+                  { value: "all", label: "All" },
+                  { value: "psi", label: "PSI" },
+                  { value: "drip", label: "DRIP" },
+                  { value: "severe", label: "Severe" },
+                ]}
+              />
+            </div>
           </div>
 
+          <div className="grid grid-cols-1 gap-x-9 gap-y-5 border-t border-hair pt-5 sm:grid-cols-2 xl:grid-cols-4">
+            {CATEGORIES.map((category) => (
+              <FactorGroup key={category} label={CATEGORY_LABEL[category]}>
+                {factsIn(category).map((fact) => (
+                  <Factor
+                    key={fact.key}
+                    label={fact.label}
+                    active={caseState[fact.key]}
+                    onToggle={(next) => setFact(fact.key, next)}
+                    inert={!isFactLive(fact, { focus, psiInClassOne: inClassOne })}
+                    contributions={[
+                      ...(fact.psi !== undefined ? [{ score: "PSI", points: fact.psi }] : []),
+                      ...(fact.drip !== undefined ? [{ score: "DRIP", points: fact.drip }] : []),
+                    ]}
+                  />
+                ))}
+              </FactorGroup>
+            ))}
+          </div>
+
+          <p className="m-0 text-[11px] text-faint">
+            Grouped by where the information comes from. Each row says which
+            score it feeds; <b>Show</b> hides the others.
+          </p>
+        </Panel>
+      </PanelRow>
+
+      {/* ===================== ANSWERS ===================== */}
+      <PanelRow>
+        <Panel title="PSI in detail" span={2}>
           <BandBar
             value={port.points}
             bands={PSI_BANDS}
@@ -205,24 +312,7 @@ export function CapTool() {
           </div>
         </Panel>
 
-        <Panel title="Broad cover? — DRIP">
-          <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
-            <Figure
-              label="DRIP"
-              value={resistance.points}
-              size="focal"
-              caption={resistance.highRisk ? "broaden cover" : "standard cover"}
-            />
-            <dl className="m-0 flex flex-col gap-1.5 pb-1">
-              <div className="flex flex-col">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
-                  Threshold
-                </dt>
-                <dd className="tnum m-0 font-mono text-[13px]">{DRIP_THRESHOLD} or more</dd>
-              </div>
-            </dl>
-          </div>
-
+        <Panel title="DRIP in detail">
           <BandBar value={resistance.points} bands={DRIP_BANDS} bandNoun="" />
 
           {resistance.highRisk ? (
@@ -274,36 +364,7 @@ export function CapTool() {
 
       {/* ===================== SEVERE CAP + STEROIDS ===================== */}
       <PanelRow>
-        <Panel title="Severe CAP, and steroids" span={2}>
-          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
-            <Figure
-              label="IDSA/ATS"
-              value={severity.severe ? "Severe" : "Not severe"}
-              size="panel"
-              caption={
-                severity.metBy === "major"
-                  ? `${severity.majorCount} major criterion met`
-                  : severity.metBy === "minor"
-                    ? `${severity.minorCount} minor criteria`
-                    : severity.minorCount > 0
-                      ? `${severity.minorCount} of 3 minor`
-                      : "no criteria met"
-              }
-            />
-            <div className="flex flex-col gap-1.5 pb-1">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
-                Steroids
-              </span>
-              <span className="text-[13px] font-medium">
-                {steroids.verdict === "indicated"
-                  ? "Indicated"
-                  : steroids.verdict === "outside-trial"
-                    ? "Outside the evidence"
-                    : "Not indicated"}
-              </span>
-            </div>
-          </div>
-
+        <Panel title="Severe CAP and steroids in detail" span={2}>
           <p className="m-0 max-w-[70ch] text-[12.5px] leading-relaxed text-soft">
             {steroids.regimen ? (
               <b className="font-semibold text-ink">{steroids.regimen}. </b>
@@ -366,82 +427,6 @@ export function CapTool() {
         </Panel>
       </PanelRow>
 
-      {/* ===================== THE CASE ===================== */}
-      <PanelRow>
-        <Panel title="The case" span={3}>
-          <div className="flex flex-wrap items-end justify-between gap-6">
-            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
-              <div className="w-[210px]">
-                <SliderField
-                  label="Age"
-                  value={caseState.ageYears}
-                  onChange={(next) => setFact("ageYears", next)}
-                  min={18}
-                  max={100}
-                  suffix="years"
-                  note={`PSI ${caseState.sex === "male" ? caseState.ageYears : caseState.ageYears - 10}`}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                  Sex
-                </span>
-                <Segmented
-                  value={caseState.sex}
-                  onChange={(next) => setFact("sex", next)}
-                  options={[
-                    { value: "male", label: "Male" },
-                    { value: "female", label: "Female" },
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                Show
-              </span>
-              <Segmented
-                value={focus}
-                onChange={setFocus}
-                options={[
-                  { value: "all", label: "All" },
-                  { value: "psi", label: "PSI" },
-                  { value: "drip", label: "DRIP" },
-                  { value: "severe", label: "Severe" },
-                ]}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-x-10 gap-y-6 border-t border-hair pt-6 sm:grid-cols-2 xl:grid-cols-4">
-            {CATEGORIES.map((category) => (
-              <FactorGroup key={category} label={CATEGORY_LABEL[category]}>
-                {factsIn(category).map((fact) => (
-                  <Factor
-                    key={fact.key}
-                    label={fact.label}
-                    active={caseState[fact.key]}
-                    onToggle={(next) => setFact(fact.key, next)}
-                    inert={!isFactLive(fact, { focus, psiInClassOne: inClassOne })}
-                    contributions={[
-                      ...(fact.psi !== undefined ? [{ score: "PSI", points: fact.psi }] : []),
-                      ...(fact.drip !== undefined ? [{ score: "DRIP", points: fact.drip }] : []),
-                    ]}
-                  />
-                ))}
-              </FactorGroup>
-            ))}
-          </div>
-
-          <p className="m-0 max-w-[86ch] text-[11.5px] leading-relaxed text-faint">
-            Grouped by where the information comes from, not by which score wants
-            it — the two share only long-term care out of twenty-nine facts, so
-            splitting by score meant answering history questions twice. Each row
-            says which score it feeds; <b>Show</b> hides the other one.
-          </p>
-        </Panel>
-      </PanelRow>
       {/* ===================== DIAGNOSIS / THERAPY ===================== */}
       <PanelRow>
         <Panel title="Is it pneumonia">

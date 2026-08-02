@@ -20,7 +20,7 @@ export function Panel({
     span === 3 ? "lg:col-span-3" : span === 2 ? "lg:col-span-2" : "";
 
   return (
-    <section className={`flex min-w-0 flex-col gap-4 ${width}`}>
+    <section className={`flex min-w-0 flex-col gap-3.5 ${width}`}>
       <Eyebrow>{title}</Eyebrow>
       {children}
     </section>
@@ -34,6 +34,6 @@ export function Panel({
  */
 export function PanelRow({ children }: { children: ReactNode }) {
   return (
-    <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">{children}</div>
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">{children}</div>
   );
 }
