@@ -27,14 +27,14 @@ export interface SevereCapFindings {
 
   // minor — three or more
   /** Respiratory rate 30 or more. Same cut point as PSI. */
-  tachypnoea: boolean;
+  tachypnea: boolean;
   /** PaO₂/FiO₂ 250 or less. */
   pafiUnder250: boolean;
   multilobarInfiltrates: boolean;
   /** Confusion or disorientation. Same fact as PSI's altered mental status. */
   confusion: boolean;
   /** BUN 20 mg/dL or more — note PSI scores at 30. */
-  uraemiaOver20: boolean;
+  uremiaOver20: boolean;
   /** White cells under 4000. */
   leukopenia: boolean;
   /** Platelets under 100,000. */
@@ -57,11 +57,11 @@ export const SEVERE_CAP_MAJOR: CriterionItem[] = [
 ];
 
 export const SEVERE_CAP_MINOR: CriterionItem[] = [
-  { key: "tachypnoea", label: "Resp rate ≥ 30", kind: "minor" },
+  { key: "tachypnea", label: "Resp rate ≥ 30", kind: "minor" },
   { key: "pafiUnder250", label: "PaO₂/FiO₂ ≤ 250", kind: "minor" },
   { key: "multilobarInfiltrates", label: "Multilobar infiltrates", kind: "minor" },
   { key: "confusion", label: "Confusion", kind: "minor" },
-  { key: "uraemiaOver20", label: "BUN ≥ 20", kind: "minor" },
+  { key: "uremiaOver20", label: "BUN ≥ 20", kind: "minor" },
   { key: "leukopenia", label: "White cells < 4000", kind: "minor" },
   { key: "thrombocytopenia", label: "Platelets < 100k", kind: "minor" },
   { key: "hypothermiaUnder36", label: "Temp < 36 °C", kind: "minor" },

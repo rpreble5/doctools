@@ -22,17 +22,17 @@ const well: PsiFindings = {
   cerebrovascularDisease: false,
   renalDisease: false,
   alteredMentalStatus: false,
-  tachypnoea: false,
+  tachypnea: false,
   hypotension: false,
   temperatureExtreme: false,
   tachycardia: false,
   pleuralEffusion: false,
-  hypoxaemia: false,
+  hypoxemia: false,
   acidosis: false,
-  uraemia: false,
-  hyponatraemia: false,
-  hyperglycaemia: false,
-  anaemia: false,
+  uremia: false,
+  hyponatremia: false,
+  hyperglycemia: false,
+  anemia: false,
 };
 
 const values: PsiValues = {
@@ -53,13 +53,13 @@ const values: PsiValues = {
 };
 
 /* ================================================================
-   Thresholds — the boundary behaviour lives here
+   Thresholds — the boundary behavior lives here
    ================================================================ */
 
 describe("findingsFromValues", () => {
   it("scores respiratory rate at 30, not 29", () => {
-    expect(findingsFromValues({ ...values, respiratoryRate: 29 }).tachypnoea).toBe(false);
-    expect(findingsFromValues({ ...values, respiratoryRate: 30 }).tachypnoea).toBe(true);
+    expect(findingsFromValues({ ...values, respiratoryRate: 29 }).tachypnea).toBe(false);
+    expect(findingsFromValues({ ...values, respiratoryRate: 30 }).tachypnea).toBe(true);
   });
 
   it("scores systolic under 90, not at 90", () => {
@@ -83,33 +83,33 @@ describe("findingsFromValues", () => {
     expect(findingsFromValues({ ...values, arterialPh: 7.35 }).acidosis).toBe(false);
     expect(findingsFromValues({ ...values, arterialPh: 7.34 }).acidosis).toBe(true);
 
-    expect(findingsFromValues({ ...values, bunMgDl: 29 }).uraemia).toBe(false);
-    expect(findingsFromValues({ ...values, bunMgDl: 30 }).uraemia).toBe(true);
+    expect(findingsFromValues({ ...values, bunMgDl: 29 }).uremia).toBe(false);
+    expect(findingsFromValues({ ...values, bunMgDl: 30 }).uremia).toBe(true);
 
-    expect(findingsFromValues({ ...values, sodiumMmolL: 130 }).hyponatraemia).toBe(false);
-    expect(findingsFromValues({ ...values, sodiumMmolL: 129 }).hyponatraemia).toBe(true);
+    expect(findingsFromValues({ ...values, sodiumMmolL: 130 }).hyponatremia).toBe(false);
+    expect(findingsFromValues({ ...values, sodiumMmolL: 129 }).hyponatremia).toBe(true);
 
-    expect(findingsFromValues({ ...values, glucoseMgDl: 249 }).hyperglycaemia).toBe(false);
-    expect(findingsFromValues({ ...values, glucoseMgDl: 250 }).hyperglycaemia).toBe(true);
+    expect(findingsFromValues({ ...values, glucoseMgDl: 249 }).hyperglycemia).toBe(false);
+    expect(findingsFromValues({ ...values, glucoseMgDl: 250 }).hyperglycemia).toBe(true);
 
-    expect(findingsFromValues({ ...values, haematocritPct: 30 }).anaemia).toBe(false);
-    expect(findingsFromValues({ ...values, haematocritPct: 29 }).anaemia).toBe(true);
+    expect(findingsFromValues({ ...values, hematocritPct: 30 }).anemia).toBe(false);
+    expect(findingsFromValues({ ...values, hematocritPct: 29 }).anemia).toBe(true);
   });
 
-  it("takes hypoxaemia from either PaO₂ or saturations", () => {
-    expect(findingsFromValues({ ...values, pao2MmHg: 60 }).hypoxaemia).toBe(false);
-    expect(findingsFromValues({ ...values, pao2MmHg: 59 }).hypoxaemia).toBe(true);
-    expect(findingsFromValues({ ...values, oxygenSaturationPct: 90 }).hypoxaemia).toBe(false);
-    expect(findingsFromValues({ ...values, oxygenSaturationPct: 89 }).hypoxaemia).toBe(true);
+  it("takes hypoxemia from either PaO₂ or saturations", () => {
+    expect(findingsFromValues({ ...values, pao2MmHg: 60 }).hypoxemia).toBe(false);
+    expect(findingsFromValues({ ...values, pao2MmHg: 59 }).hypoxemia).toBe(true);
+    expect(findingsFromValues({ ...values, oxygenSaturationPct: 90 }).hypoxemia).toBe(false);
+    expect(findingsFromValues({ ...values, oxygenSaturationPct: 89 }).hypoxemia).toBe(true);
   });
 
   it("leaves an unmeasured investigation undefined rather than false", () => {
     const f = findingsFromValues(values);
     expect(f.acidosis).toBeUndefined();
-    expect(f.uraemia).toBeUndefined();
-    expect(f.hyponatraemia).toBeUndefined();
-    expect(f.hyperglycaemia).toBeUndefined();
-    expect(f.anaemia).toBeUndefined();
+    expect(f.uremia).toBeUndefined();
+    expect(f.hyponatremia).toBeUndefined();
+    expect(f.hyperglycemia).toBeUndefined();
+    expect(f.anemia).toBeUndefined();
   });
 });
 
@@ -135,13 +135,13 @@ describe("classOneBlockers", () => {
         ...well,
         ageYears: 71,
         renalDisease: true,
-        tachypnoea: true,
+        tachypnea: true,
       }),
     ).toEqual(["Over 50", "Renal disease", "Respiratory rate 30 or more"]);
   });
 
   it("is not affected by laboratory findings — step one needs no bloods", () => {
-    expect(isClassOne({ ...well, uraemia: true, acidosis: true })).toBe(true);
+    expect(isClassOne({ ...well, uremia: true, acidosis: true })).toBe(true);
   });
 
   it("drops out on any deranged vital", () => {
@@ -164,12 +164,12 @@ describe("STEP_ONE_FACTORS", () => {
     for (const key of [
       "nursingHomeResident",
       "pleuralEffusion",
-      "hypoxaemia",
+      "hypoxemia",
       "acidosis",
-      "uraemia",
-      "hyponatraemia",
-      "hyperglycaemia",
-      "anaemia",
+      "uremia",
+      "hyponatremia",
+      "hyperglycemia",
+      "anemia",
     ]) {
       expect(isStepOneFactor(key)).toBe(false);
       expect(isClassOne({ ...well, [key]: true })).toBe(true);
@@ -214,7 +214,7 @@ describe("PSI point scoring", () => {
         ...well,
         ageYears: 68,
         alteredMentalStatus: true,
-        tachypnoea: true,
+        tachypnea: true,
         hypotension: true,
         temperatureExtreme: true,
         tachycardia: true,
@@ -229,18 +229,18 @@ describe("PSI point scoring", () => {
         ...well,
         ageYears: 68,
         acidosis: true,
-        uraemia: true,
-        hyponatraemia: true,
-        hyperglycaemia: true,
-        anaemia: true,
-        hypoxaemia: true,
+        uremia: true,
+        hyponatremia: true,
+        hyperglycemia: true,
+        anemia: true,
+        hypoxemia: true,
         pleuralEffusion: true,
       }).points,
     ).toBe(178);
   });
 
   it("scores an unmeasured investigation as nothing", () => {
-    const unmeasured = { ...well, ageYears: 60, uraemia: undefined };
+    const unmeasured = { ...well, ageYears: 60, uremia: undefined };
     expect(psi(unmeasured).points).toBe(60);
   });
 
@@ -271,10 +271,10 @@ describe("investigationHeadroom", () => {
     ...well,
     ageYears: 68,
     acidosis: undefined,
-    uraemia: undefined,
-    hyponatraemia: undefined,
-    hyperglycaemia: undefined,
-    anaemia: undefined,
+    uremia: undefined,
+    hyponatremia: undefined,
+    hyperglycemia: undefined,
+    anemia: undefined,
   };
 
   it("counts every investigation that is not scoring", () => {
@@ -285,7 +285,7 @@ describe("investigationHeadroom", () => {
       "BUN",
       "sodium",
       "glucose",
-      "haematocrit",
+      "hematocrit",
     ]);
     expect(h.points).toBe(90); // 30 + 20 + 20 + 10 + 10
   });
@@ -294,10 +294,10 @@ describe("investigationHeadroom", () => {
     const allNormal = {
       ...noLabs,
       acidosis: false,
-      uraemia: false,
-      hyponatraemia: false,
-      hyperglycaemia: false,
-      anaemia: false,
+      uremia: false,
+      hyponatremia: false,
+      hyperglycemia: false,
+      anemia: false,
     };
     expect(investigationHeadroom(allNormal).points).toBe(
       investigationHeadroom(noLabs).points,
@@ -310,11 +310,11 @@ describe("investigationHeadroom", () => {
   });
 
   it("shrinks as abnormalities are marked", () => {
-    const h = investigationHeadroom({ ...noLabs, uraemia: true, acidosis: true });
+    const h = investigationHeadroom({ ...noLabs, uremia: true, acidosis: true });
     expect(h.unscored.map((u) => u.label)).toEqual([
       "sodium",
       "glucose",
-      "haematocrit",
+      "hematocrit",
     ]);
     expect(h.points).toBe(40);
   });
@@ -323,10 +323,10 @@ describe("investigationHeadroom", () => {
     const h = investigationHeadroom({
       ...noLabs,
       acidosis: true,
-      uraemia: true,
-      hyponatraemia: true,
-      hyperglycaemia: true,
-      anaemia: true,
+      uremia: true,
+      hyponatremia: true,
+      hyperglycemia: true,
+      anemia: true,
     });
     expect(h.exhausted).toBe(true);
     expect(h.points).toBe(0);

@@ -142,7 +142,7 @@ export const steroidSeam: Seam = {
     {
       who: "ATS 2025",
       stance:
-        "Recommends systemic glucocorticoids in hospitalised patients with severe CAP, on CAPE-COD and a meta-analysis of thirteen trials.",
+        "Recommends systemic glucocorticoids in hospitalized patients with severe CAP, on CAPE-COD and a meta-analysis of thirteen trials.",
     },
     {
       who: "What CAPE-COD excluded",
@@ -154,7 +154,7 @@ export const steroidSeam: Seam = {
 };
 
 export const hcapNote =
-  "Not HCAP. That category was retired in 2019 — nursing-home residence alone does not broaden coverage. Broaden for documented prior MRSA or Pseudomonas, or recent hospitalisation with parenteral antibiotics.";
+  "Not HCAP. That category was retired in 2019 — nursing-home residence alone does not broaden coverage. Broaden for documented prior MRSA or Pseudomonas, or recent hospitalization with parenteral antibiotics.";
 
 /* ------------------------------------------------------------------
    The seam

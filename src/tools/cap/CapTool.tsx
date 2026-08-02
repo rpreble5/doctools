@@ -32,7 +32,7 @@ import {
 } from "@/lib/scores/psi";
 
 import {
-  CATEGORIES,
+  CASE_COLUMNS,
   CATEGORY_LABEL,
   emptyCase,
   factsIn,
@@ -210,9 +210,9 @@ export function CapTool() {
           }
         >
           <div className="grid grid-cols-1 gap-x-9 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
-            {CATEGORIES.map((category) => (
-              <div key={category} className="flex min-w-0 flex-col gap-4">
-                {category === "comorbidity" ? (
+            {CASE_COLUMNS.map((column, columnIndex) => (
+              <div key={column.join("-")} className="flex min-w-0 flex-col gap-4">
+                {columnIndex === 0 ? (
                   <div className="flex flex-col gap-1.5 border-b border-hair pb-3.5">
                     <span className="flex items-baseline justify-between gap-3">
                       <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-soft">
@@ -246,51 +246,54 @@ export function CapTool() {
                     </span>
                   </div>
                 ) : null}
-              <FactorGroup label={CATEGORY_LABEL[category]}>
-                {levelsIn(category).map((level) => (
-                  <FactorLevels
-                    key={level.key}
-                    label={level.label}
-                    value={caseState[level.key]}
-                    onChange={(next) =>
-                      setFact(level.key, next as CaseState[typeof level.key])
-                    }
-                    inert={!isLevelLive(level, focus)}
-                    options={level.options.map((option) => ({
-                      value: option.value,
-                      label: option.label,
-                      contributions: [
-                        ...(option.psi !== undefined
-                          ? [{ score: "PSI", points: option.psi }]
-                          : []),
-                        ...(option.severe !== undefined
-                          ? [{ score: "SEVERE", points: 0 }]
-                          : []),
-                      ],
-                    }))}
-                  />
+                {column.map((category) => (
+                  <FactorGroup key={category} label={CATEGORY_LABEL[category]}>
+                    {levelsIn(category).map((level) => (
+                      <FactorLevels
+                        key={level.key}
+                        label={level.label}
+                        value={caseState[level.key]}
+                        onChange={(next) =>
+                          setFact(level.key, next as CaseState[typeof level.key])
+                        }
+                        inert={!isLevelLive(level, focus)}
+                        options={level.options.map((option) => ({
+                          value: option.value,
+                          label: option.label,
+                          contributions: [
+                            ...(option.psi !== undefined
+                              ? [{ score: "PSI", points: option.psi }]
+                              : []),
+                            ...(option.severe !== undefined
+                              ? [{ score: "SEVERE", points: 0 }]
+                              : []),
+                          ],
+                        }))}
+                      />
+                    ))}
+                    {factsIn(category).map((fact) => (
+                      <Factor
+                        key={fact.key}
+                        label={fact.label}
+                        active={caseState[fact.key]}
+                        onToggle={(next) => setFact(fact.key, next)}
+                        inert={!isFactLive(fact, { focus, psiInClassOne: inClassOne })}
+                        contributions={[
+                          ...(fact.psi !== undefined ? [{ score: "PSI", points: fact.psi }] : []),
+                          ...(fact.drip !== undefined ? [{ score: "DRIP", points: fact.drip }] : []),
+                        ]}
+                      />
+                    ))}
+                  </FactorGroup>
                 ))}
-                {factsIn(category).map((fact) => (
-                  <Factor
-                    key={fact.key}
-                    label={fact.label}
-                    active={caseState[fact.key]}
-                    onToggle={(next) => setFact(fact.key, next)}
-                    inert={!isFactLive(fact, { focus, psiInClassOne: inClassOne })}
-                    contributions={[
-                      ...(fact.psi !== undefined ? [{ score: "PSI", points: fact.psi }] : []),
-                      ...(fact.drip !== undefined ? [{ score: "DRIP", points: fact.drip }] : []),
-                    ]}
-                  />
-                ))}
-              </FactorGroup>
               </div>
             ))}
           </div>
 
           <p className="m-0 text-[11px] text-faint">
-            Grouped by where the information comes from. Each row says which
-            score it feeds; <b>Show</b> hides the others.
+            Grouped by where the information comes from — chart, bedside,
+            film, lab. Each row says which score it feeds; <b>Show</b> hides
+            the others.
           </p>
         </Panel>
       </PanelRow>
@@ -326,7 +329,7 @@ export function CapTool() {
                 <b className="font-semibold text-ink">
                   Class {port.riskClass} now. Could reach {headroom.worstCaseClass}.
                 </b>{" "}
-                {headroom.points} points sit in results you have not marked
+                {headroom.points} points sit in labs you have not marked
                 ({headroom.unscored.map((u) => u.label).join(", ")}). A normal
                 result and a missing one score the same.
               </p>
@@ -593,7 +596,7 @@ export function CapTool() {
                 tone="benefit"
                 items={stabilityCriteria.map((label) => ({
                   label,
-                  met: label !== "Saturations 90% or more" || !caseState.hypoxaemia,
+                  met: label !== "Saturations 90% or more" || !caseState.hypoxemia,
                 }))}
               />
             </div>

@@ -4,8 +4,8 @@
  * Fine MJ et al, NEJM 1997. Derived on ~14,000 patients and validated
  * on ~38,000, and the score the 2019 ATS/IDSA guideline recommends over
  * CURB-65 for site of care — not on discrimination (0.80 against 0.76)
- * but because cluster-randomised trials showed that using it safely
- * reduces low-risk hospitalisations. Awaiting attending review.
+ * but because cluster-randomized trials showed that using it safely
+ * reduces low-risk hospitalizations. Awaiting attending review.
  *
  * Two things it does not do, both of which matter:
  *
@@ -25,7 +25,7 @@
  * not" is a worse interface and a less honest model.
  *
  * findingsFromValues() converts real measurements at the cut points,
- * and is where the boundary behaviour is tested.
+ * and is where the boundary behavior is tested.
  */
 
 export type PsiClass = "I" | "II" | "III" | "IV" | "V";
@@ -45,7 +45,7 @@ export interface PsiFindings {
   // examination
   alteredMentalStatus: boolean;
   /** Respiratory rate 30 or more. */
-  tachypnoea: boolean;
+  tachypnea: boolean;
   /** Systolic under 90. */
   hypotension: boolean;
   /** Under 35 °C, or 40 °C and over. */
@@ -54,20 +54,20 @@ export interface PsiFindings {
   tachycardia: boolean;
   pleuralEffusion: boolean;
   /** PaO₂ under 60, or saturations under 90%. */
-  hypoxaemia: boolean;
+  hypoxemia: boolean;
 
   // investigations — undefined means not measured, which is not the
   // same as normal and must not be scored as zero silently
   /** Arterial pH under 7.35. */
   acidosis?: boolean;
   /** BUN 30 mg/dL or more. */
-  uraemia?: boolean;
+  uremia?: boolean;
   /** Sodium under 130. */
-  hyponatraemia?: boolean;
+  hyponatremia?: boolean;
   /** Glucose 250 mg/dL or more. */
-  hyperglycaemia?: boolean;
-  /** Haematocrit under 30%. */
-  anaemia?: boolean;
+  hyperglycemia?: boolean;
+  /** Hematocrit under 30%. */
+  anemia?: boolean;
 }
 
 export interface PsiContribution {
@@ -106,7 +106,7 @@ export interface PsiValues {
   bunMgDl?: number;
   sodiumMmolL?: number;
   glucoseMgDl?: number;
-  haematocritPct?: number;
+  hematocritPct?: number;
   pao2MmHg?: number;
   oxygenSaturationPct?: number;
 }
@@ -127,19 +127,19 @@ export function findingsFromValues(v: PsiValues): PsiFindings {
     cerebrovascularDisease: v.cerebrovascularDisease,
     renalDisease: v.renalDisease,
     alteredMentalStatus: v.alteredMentalStatus,
-    tachypnoea: v.respiratoryRate >= 30,
+    tachypnea: v.respiratoryRate >= 30,
     hypotension: v.systolicBp < 90,
     temperatureExtreme: v.temperatureC < 35 || v.temperatureC >= 40,
     tachycardia: v.pulse >= 125,
     pleuralEffusion: v.pleuralEffusion,
-    hypoxaemia:
+    hypoxemia:
       (v.pao2MmHg !== undefined && v.pao2MmHg < 60) ||
       (v.oxygenSaturationPct !== undefined && v.oxygenSaturationPct < 90),
     acidosis: atThreshold(v.arterialPh, (p) => p < 7.35),
-    uraemia: atThreshold(v.bunMgDl, (b) => b >= 30),
-    hyponatraemia: atThreshold(v.sodiumMmolL, (s) => s < 130),
-    hyperglycaemia: atThreshold(v.glucoseMgDl, (g) => g >= 250),
-    anaemia: atThreshold(v.haematocritPct, (h) => h < 30),
+    uremia: atThreshold(v.bunMgDl, (b) => b >= 30),
+    hyponatremia: atThreshold(v.sodiumMmolL, (s) => s < 130),
+    hyperglycemia: atThreshold(v.glucoseMgDl, (g) => g >= 250),
+    anemia: atThreshold(v.hematocritPct, (h) => h < 30),
   };
 }
 
@@ -167,7 +167,7 @@ export const STEP_ONE_FACTORS = [
   "renalDisease",
   "alteredMentalStatus",
   "tachycardia",
-  "tachypnoea",
+  "tachypnea",
   "hypotension",
   "temperatureExtreme",
 ] as const;
@@ -192,7 +192,7 @@ export function classOneBlockers(f: PsiFindings): string[] {
   if (f.renalDisease) blockers.push("Renal disease");
   if (f.alteredMentalStatus) blockers.push("Altered mental status");
   if (f.tachycardia) blockers.push("Pulse 125 or more");
-  if (f.tachypnoea) blockers.push("Respiratory rate 30 or more");
+  if (f.tachypnea) blockers.push("Respiratory rate 30 or more");
   if (f.hypotension) blockers.push("Systolic under 90");
   if (f.temperatureExtreme)
     blockers.push("Temperature under 35 or 40 and over");
@@ -218,10 +218,10 @@ export const isClassOne = (f: PsiFindings): boolean =>
 
 const INVESTIGATIONS = [
   { key: "acidosis", label: "pH", maxPoints: 30 },
-  { key: "uraemia", label: "BUN", maxPoints: 20 },
-  { key: "hyponatraemia", label: "sodium", maxPoints: 20 },
-  { key: "hyperglycaemia", label: "glucose", maxPoints: 10 },
-  { key: "anaemia", label: "haematocrit", maxPoints: 10 },
+  { key: "uremia", label: "BUN", maxPoints: 20 },
+  { key: "hyponatremia", label: "sodium", maxPoints: 20 },
+  { key: "hyperglycemia", label: "glucose", maxPoints: 10 },
+  { key: "anemia", label: "hematocrit", maxPoints: 10 },
 ] as const;
 
 export interface PsiHeadroom {
@@ -274,17 +274,17 @@ export function psi(f: PsiFindings): PsiResult {
   add("Renal disease", f.renalDisease ? 10 : 0);
 
   add("Altered mental status", f.alteredMentalStatus ? 20 : 0);
-  add("Respiratory rate 30 or more", f.tachypnoea ? 20 : 0);
+  add("Respiratory rate 30 or more", f.tachypnea ? 20 : 0);
   add("Systolic under 90", f.hypotension ? 20 : 0);
   add("Temperature under 35 or 40 and over", f.temperatureExtreme ? 15 : 0);
   add("Pulse 125 or more", f.tachycardia ? 10 : 0);
 
   add("Arterial pH under 7.35", f.acidosis ? 30 : 0);
-  add("BUN 30 mg/dL or more", f.uraemia ? 20 : 0);
-  add("Sodium under 130", f.hyponatraemia ? 20 : 0);
-  add("Glucose 250 mg/dL or more", f.hyperglycaemia ? 10 : 0);
-  add("Haematocrit under 30%", f.anaemia ? 10 : 0);
-  add("PaO₂ under 60, or saturations under 90%", f.hypoxaemia ? 10 : 0);
+  add("BUN 30 mg/dL or more", f.uremia ? 20 : 0);
+  add("Sodium under 130", f.hyponatremia ? 20 : 0);
+  add("Glucose 250 mg/dL or more", f.hyperglycemia ? 10 : 0);
+  add("Hematocrit under 30%", f.anemia ? 10 : 0);
+  add("PaO₂ under 60, or saturations under 90%", f.hypoxemia ? 10 : 0);
   add("Pleural effusion", f.pleuralEffusion ? 10 : 0);
 
   const points = contributions.reduce((sum, c) => sum + c.points, 0);

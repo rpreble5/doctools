@@ -2,7 +2,7 @@
 
 import type { ReactNode } from "react";
 
-/** A compact numeric input. Neutral chrome — no colour, ever. */
+/** A compact numeric input. Neutral chrome — no color, ever. */
 export function NumberField({
   label,
   value,
@@ -97,7 +97,7 @@ export function SliderField({
   );
 }
 
-/** A binary fact about the patient. Selected state is weight, not colour. */
+/** A binary fact about the patient. Selected state is weight, not color. */
 export function ToggleChip({
   label,
   active,

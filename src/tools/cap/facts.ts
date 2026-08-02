@@ -9,14 +9,25 @@ import type { SevereCapFindings } from "@/lib/scores/severeCap";
  * genuinely different questions. Grouping the inputs by score therefore
  * made you answer history questions in two places, once for each. These
  * are grouped by where the information comes from instead, which is how
- * it is actually gathered: comorbidity and exposure off the chart,
- * examination at the bedside, results when they land.
+ * it is actually gathered: chart, bedside, film, lab.
+ *
+ * The groups are narrow on purpose. "Examination" had held the vitals,
+ * the chest film and the organ support all in one column, so reading
+ * off a set of numbers meant skipping past two findings that come from
+ * somewhere else entirely. A group you can read straight down without
+ * changing source is faster than a shorter list of longer groups.
  *
  * Each fact declares which scores it feeds, so a row can say so without
  * anyone maintaining a second list.
  */
 
-export type Category = "comorbidity" | "exposure" | "examination" | "results";
+export type Category =
+  | "comorbidity"
+  | "exposure"
+  | "vitals"
+  | "support"
+  | "imaging"
+  | "labs";
 
 export type FactKey =
   // shared
@@ -30,32 +41,32 @@ export type FactKey =
   | "chronicPulmonaryDisease"
   // exposure
   | "antibioticsWithin60Days"
-  | "hospitalisedWithin60Days"
+  | "hospitalizedWithin60Days"
   | "priorDrugResistantInfection"
-  | "mrsaColonisation"
+  | "mrsaColonization"
   | "tubeFeeding"
   | "poorFunctionalStatus"
   | "woundCare"
   | "gastricAcidSuppression"
-  // examination
-  | "alteredMentalStatus"
-  | "tachypnoea"
+  // vitals
+  | "tachypnea"
   | "hypotension"
   | "tachycardia"
-  | "hypoxaemia"
-  | "pleuralEffusion"
-  // results
-  | "acidosis"
-  | "hyponatraemia"
-  | "hyperglycaemia"
-  | "anaemia"
-  // severe CAP — major
+  | "hypoxemia"
+  | "pafiUnder250"
+  | "alteredMentalStatus"
+  // support
+  | "hypotensionNeedingFluids"
   | "septicShock"
   | "mechanicalVentilation"
-  // severe CAP — minor not already collected
+  // imaging
+  | "pleuralEffusion"
   | "multilobarInfiltrates"
-  | "hypotensionNeedingFluids"
-  | "pafiUnder250"
+  // labs
+  | "acidosis"
+  | "hyponatremia"
+  | "hyperglycemia"
+  | "anemia"
   | "leukopenia"
   | "thrombocytopenia"
   // context for the steroid decision
@@ -86,35 +97,46 @@ export const CASE_FACTS: CaseFact[] = [
   // ---- exposure ----
   { key: "longTermCare", label: "Long-term care", category: "exposure", psi: 10, drip: 2 },
   { key: "antibioticsWithin60Days", label: "Antibiotics, 60 d", category: "exposure", drip: 2 },
-  { key: "hospitalisedWithin60Days", label: "Hospitalised, 60 d", category: "exposure", drip: 1 },
+  { key: "hospitalizedWithin60Days", label: "Hospitalized, 60 d", category: "exposure", drip: 1 },
   { key: "priorDrugResistantInfection", label: "Prior resistant infection", category: "exposure", drip: 2 },
-  { key: "mrsaColonisation", label: "MRSA colonised", category: "exposure", drip: 1 },
+  { key: "mrsaColonization", label: "MRSA colonized", category: "exposure", drip: 1 },
   { key: "tubeFeeding", label: "Tube feeding", category: "exposure", drip: 2 },
   { key: "poorFunctionalStatus", label: "Poor functional status", category: "exposure", drip: 1 },
   { key: "woundCare", label: "Wound care", category: "exposure", drip: 1 },
   { key: "gastricAcidSuppression", label: "Gastric acid suppression", category: "exposure", drip: 1 },
 
-  // ---- examination ----
-  { key: "alteredMentalStatus", label: "Altered mental status", category: "examination", psi: 20, severe: "minor" },
-  { key: "tachypnoea", label: "Resp rate ≥ 30", category: "examination", psi: 20, severe: "minor" },
-  { key: "hypotension", label: "Systolic < 90", category: "examination", psi: 20 },
-  { key: "tachycardia", label: "Pulse ≥ 125", category: "examination", psi: 10 },
-  { key: "hypoxaemia", label: "SpO₂ < 90", category: "examination", psi: 10 },
-  { key: "pafiUnder250", label: "PaO₂/FiO₂ ≤ 250", category: "examination", severe: "minor" },
-  { key: "pleuralEffusion", label: "Pleural effusion", category: "examination", psi: 10 },
-  { key: "septicShock", label: "Septic shock, on pressors", category: "examination", severe: "major" },
-  { key: "mechanicalVentilation", label: "Needs ventilation", category: "examination", severe: "major" },
-  { key: "hypotensionNeedingFluids", label: "Hypotension needing fluids", category: "examination", severe: "minor" },
-  { key: "multilobarInfiltrates", label: "Multilobar infiltrates", category: "examination", severe: "minor" },
+  /* ---- vitals ----
+     The numbers taken at the bedside, in the order a chart lists them.
+     Mental status sits with them because it is observed at the same
+     moment, and PaO₂/FiO₂ directly under the saturation because the two
+     answer the same question at different cost. */
+  { key: "tachypnea", label: "Resp rate ≥ 30", category: "vitals", psi: 20, severe: "minor" },
+  { key: "hypotension", label: "Systolic < 90", category: "vitals", psi: 20 },
+  { key: "tachycardia", label: "Pulse ≥ 125", category: "vitals", psi: 10 },
+  { key: "hypoxemia", label: "SpO₂ < 90", category: "vitals", psi: 10 },
+  { key: "pafiUnder250", label: "PaO₂/FiO₂ ≤ 250", category: "vitals", severe: "minor" },
+  { key: "alteredMentalStatus", label: "Altered mental status", category: "vitals", psi: 20, severe: "minor" },
 
-  // ---- results ----
-  { key: "acidosis", label: "pH < 7.35", category: "results", psi: 30 },
-  { key: "hyponatraemia", label: "Sodium < 130", category: "results", psi: 20 },
-  { key: "hyperglycaemia", label: "Glucose ≥ 250", category: "results", psi: 10 },
-  { key: "anaemia", label: "Haematocrit < 30", category: "results", psi: 10 },
-  { key: "leukopenia", label: "White cells < 4000", category: "results", severe: "minor" },
-  { key: "thrombocytopenia", label: "Platelets < 100k", category: "results", severe: "minor" },
-  { key: "influenza", label: "Influenza positive", category: "results", steroidContext: true },
+  /* ---- support ----
+     Not findings but what is already being done about them. All three
+     are severe-CAP criteria and none feeds PSI, so they belong apart
+     from the vitals they respond to. */
+  { key: "hypotensionNeedingFluids", label: "Hypotension needing fluids", category: "support", severe: "minor" },
+  { key: "septicShock", label: "Septic shock, on pressors", category: "support", severe: "major" },
+  { key: "mechanicalVentilation", label: "Needs ventilation", category: "support", severe: "major" },
+
+  // ---- imaging ----
+  { key: "pleuralEffusion", label: "Pleural effusion", category: "imaging", psi: 10 },
+  { key: "multilobarInfiltrates", label: "Multilobar infiltrates", category: "imaging", severe: "minor" },
+
+  // ---- labs ----
+  { key: "acidosis", label: "pH < 7.35", category: "labs", psi: 30 },
+  { key: "hyponatremia", label: "Sodium < 130", category: "labs", psi: 20 },
+  { key: "hyperglycemia", label: "Glucose ≥ 250", category: "labs", psi: 10 },
+  { key: "anemia", label: "Hematocrit < 30", category: "labs", psi: 10 },
+  { key: "leukopenia", label: "White cells < 4000", category: "labs", severe: "minor" },
+  { key: "thrombocytopenia", label: "Platelets < 100k", category: "labs", severe: "minor" },
+  { key: "influenza", label: "Influenza positive", category: "labs", steroidContext: true },
 ];
 
 /* ------------------------------------------------------------------
@@ -152,7 +174,7 @@ export const CASE_LEVELS: CaseLevel[] = [
   {
     key: "temperature",
     label: "Temperature",
-    category: "examination",
+    category: "vitals",
     options: [
       { value: "under35", label: "< 35", psi: 15, severe: "minor" },
       { value: "band35to36", label: "35–36", severe: "minor" },
@@ -163,7 +185,7 @@ export const CASE_LEVELS: CaseLevel[] = [
   {
     key: "bun",
     label: "BUN",
-    category: "results",
+    category: "labs",
     options: [
       { value: "under20", label: "< 20" },
       { value: "over20", label: "≥ 20", severe: "minor" },
@@ -194,15 +216,27 @@ export function isLevelLive(level: CaseLevel, focus: Focus): boolean {
 export const CATEGORY_LABEL: Record<Category, string> = {
   comorbidity: "Comorbidity",
   exposure: "Exposure",
-  examination: "Examination",
-  results: "Results",
+  vitals: "Vitals",
+  support: "Support",
+  imaging: "Imaging",
+  labs: "Labs",
 };
 
-export const CATEGORIES: Category[] = [
-  "comorbidity",
-  "exposure",
-  "examination",
-  "results",
+/**
+ * How the groups sit on the page: four columns, some carrying two
+ * groups stacked.
+ *
+ * Imaging is two rows and would waste a column of its own, so it sits
+ * above the labs — both are things that come back rather than things
+ * you observe. Support sits under the vitals it responds to. The
+ * arrangement also happens to even the columns out, which the previous
+ * one did not: examination ran to eleven rows beside comorbidity's six.
+ */
+export const CASE_COLUMNS: Category[][] = [
+  ["comorbidity"],
+  ["exposure"],
+  ["vitals", "support"],
+  ["imaging", "labs"],
 ];
 
 export const factsIn = (category: Category): CaseFact[] =>
@@ -242,17 +276,17 @@ export const toPsi = (c: CaseState): PsiFindings => ({
   cerebrovascularDisease: c.cerebrovascularDisease,
   renalDisease: c.renalDisease,
   alteredMentalStatus: c.alteredMentalStatus,
-  tachypnoea: c.tachypnoea,
+  tachypnea: c.tachypnea,
   hypotension: c.hypotension,
   temperatureExtreme: c.temperature === "under35" || c.temperature === "over40",
   tachycardia: c.tachycardia,
   pleuralEffusion: c.pleuralEffusion,
-  hypoxaemia: c.hypoxaemia,
+  hypoxemia: c.hypoxemia,
   acidosis: c.acidosis,
-  uraemia: c.bun === "over30",
-  hyponatraemia: c.hyponatraemia,
-  hyperglycaemia: c.hyperglycaemia,
-  anaemia: c.anaemia,
+  uremia: c.bun === "over30",
+  hyponatremia: c.hyponatremia,
+  hyperglycemia: c.hyperglycemia,
+  anemia: c.anemia,
 });
 
 /**
@@ -268,11 +302,11 @@ export const toPsi = (c: CaseState): PsiFindings => ({
 export const toSevereCap = (c: CaseState): SevereCapFindings => ({
   septicShock: c.septicShock,
   mechanicalVentilation: c.mechanicalVentilation,
-  tachypnoea: c.tachypnoea,
+  tachypnea: c.tachypnea,
   pafiUnder250: c.pafiUnder250,
   multilobarInfiltrates: c.multilobarInfiltrates,
   confusion: c.alteredMentalStatus,
-  uraemiaOver20: c.bun === "over20" || c.bun === "over30",
+  uremiaOver20: c.bun === "over20" || c.bun === "over30",
   leukopenia: c.leukopenia,
   thrombocytopenia: c.thrombocytopenia,
   hypothermiaUnder36: c.temperature === "under35" || c.temperature === "band35to36",
@@ -285,9 +319,9 @@ export const toDrip = (c: CaseState): DripFindings => ({
   longTermCare: c.longTermCare,
   priorDrugResistantInfection: c.priorDrugResistantInfection,
   chronicPulmonaryDisease: c.chronicPulmonaryDisease,
-  hospitalisedWithin60Days: c.hospitalisedWithin60Days,
+  hospitalizedWithin60Days: c.hospitalizedWithin60Days,
   poorFunctionalStatus: c.poorFunctionalStatus,
-  mrsaColonisation: c.mrsaColonisation,
+  mrsaColonization: c.mrsaColonization,
   woundCare: c.woundCare,
   gastricAcidSuppression: c.gastricAcidSuppression,
 });
