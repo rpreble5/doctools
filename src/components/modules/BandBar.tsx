@@ -41,7 +41,13 @@ export function BandBar({
   const activeIndex = bands.findIndex((b) => value <= b.upTo);
   const current = activeIndex === -1 ? bands.length - 1 : activeIndex;
   const hasNext = current < bands.length - 1;
-  const toNext = bands[current].upTo - value;
+  /*
+   * Distance to where the next band *starts*, not to where this one
+   * ends. Bands are inclusive upper bounds, so class III topping out at
+   * 90 means class IV begins at 91 — a patient at 75 is sixteen points
+   * away, not fifteen.
+   */
+  const toNext = bands[current].upTo + 1 - value;
 
   const boundaries = bands.slice(0, -1);
 

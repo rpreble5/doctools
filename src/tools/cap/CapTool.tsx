@@ -16,19 +16,24 @@ import { Panel, PanelRow } from "@/components/shell/Panel";
 import { ToolFrame } from "@/components/shell/ToolFrame";
 
 import { asPercent, canChangeManagement, revise } from "@/lib/probability";
-import {
-  drip,
-  DRIP_MAJOR,
-  DRIP_MINOR,
-  DRIP_THRESHOLD,
-  type DripFindings,
-} from "@/lib/scores/drip";
+import { drip, DRIP_THRESHOLD } from "@/lib/scores/drip";
 import {
   classOneBlockers,
-  psi,
   investigationHeadroom,
-  type PsiFindings,
+  psi,
 } from "@/lib/scores/psi";
+
+import {
+  CATEGORIES,
+  CATEGORY_LABEL,
+  emptyCase,
+  factsIn,
+  isFactLive,
+  toDrip,
+  toPsi,
+  type CaseState,
+  type Focus,
+} from "./facts";
 
 import {
   calibrationGap,
@@ -65,51 +70,17 @@ const PSI_BANDS = [
 
 export function CapTool() {
   /*
-   * Everything except age and saturations is a single bit at a
-   * published cut point, so it is a toggle that starts off. A well
-   * patient needs no interaction at all; you tap only what is wrong.
+   * One case, two scores. Facts are grouped by where the information
+   * comes from rather than by which score wants it — see facts.ts for
+   * why. Everything except age and sex is a single bit at a published
+   * cut point, so it is a toggle that starts off.
    */
+  const [caseState, setCaseState] = useState<CaseState>(emptyCase);
+  const [focus, setFocus] = useState<Focus>("both");
 
-  // ---- continuous ----
-  const [ageYears, setAgeYears] = useState(65);
-  const [hypoxaemia, setHypoxaemia] = useState(false);
-  const [sex, setSex] = useState<"male" | "female">("male");
-
-  // ---- history ----
-  const [nursingHomeResident, setNursingHomeResident] = useState(false);
-  const [neoplasticDisease, setNeoplasticDisease] = useState(false);
-  const [liverDisease, setLiverDisease] = useState(false);
-  const [heartFailure, setHeartFailure] = useState(false);
-  const [cerebrovascularDisease, setCerebrovascularDisease] = useState(false);
-  const [renalDisease, setRenalDisease] = useState(false);
-
-  // ---- examination, each at its cut point ----
-  const [alteredMentalStatus, setAlteredMentalStatus] = useState(false);
-  const [tachypnoea, setTachypnoea] = useState(false);
-  const [hypotension, setHypotension] = useState(false);
-  const [temperatureExtreme, setTemperatureExtreme] = useState(false);
-  const [tachycardia, setTachycardia] = useState(false);
-  const [pleuralEffusion, setPleuralEffusion] = useState(false);
-
-  // ---- results ----
-  const [uraemia, setUraemia] = useState(false);
-  const [hyponatraemia, setHyponatraemia] = useState(false);
-  const [hyperglycaemia, setHyperglycaemia] = useState(false);
-  const [anaemia, setAnaemia] = useState(false);
-  const [acidosis, setAcidosis] = useState(false);
-
-  // ---- resistance ----
-  const [resistanceState, setResistanceState] = useState({
-    antibioticsWithin60Days: false,
-    tubeFeeding: false,
-    priorDrugResistantInfection: false,
-    chronicPulmonaryDisease: false,
-    hospitalisedWithin60Days: false,
-    poorFunctionalStatus: false,
-    mrsaColonisation: false,
-    woundCare: false,
-    gastricAcidSuppression: false,
-  });
+  function setFact<K extends keyof CaseState>(key: K, next: CaseState[K]) {
+    setCaseState((prev) => ({ ...prev, [key]: next }));
+  }
 
   // ---- other panels ----
   const [comorbidTherapy, setComorbidTherapy] = useState(true);
@@ -120,60 +91,15 @@ export function CapTool() {
   const [testResult, setTestResult] = useState<TestResult>("positive");
   const [days, setDays] = useState(5);
 
-  const findings: PsiFindings = useMemo(
-    () => ({
-      ageYears,
-      sex,
-      nursingHomeResident,
-      neoplasticDisease,
-      liverDisease,
-      heartFailure,
-      cerebrovascularDisease,
-      renalDisease,
-      alteredMentalStatus,
-      tachypnoea,
-      hypotension,
-      temperatureExtreme,
-      tachycardia,
-      pleuralEffusion,
-      hypoxaemia,
-      uraemia,
-      hyponatraemia,
-      hyperglycaemia,
-      anaemia,
-      acidosis,
-    }),
-    [
-      ageYears, sex, nursingHomeResident,
-      neoplasticDisease, liverDisease, heartFailure,
-      cerebrovascularDisease, renalDisease,
-      alteredMentalStatus, tachypnoea, hypotension, temperatureExtreme,
-      tachycardia, pleuralEffusion, hypoxaemia,
-      uraemia, hyponatraemia, hyperglycaemia, anaemia, acidosis,
-    ],
-  );
-
-  // Long-term care residence appears in both scores. Enter it once.
-  const resistanceFindings: DripFindings = {
-    ...resistanceState,
-    longTermCare: nursingHomeResident,
-  };
-
-  const setResistanceFactor = (key: keyof DripFindings, next: boolean) => {
-    if (key === "longTermCare") {
-      setNursingHomeResident(next);
-      return;
-    }
-    setResistanceState((prev) => ({ ...prev, [key]: next }));
-  };
-
-  const resistance = drip(resistanceFindings);
+  const findings = useMemo(() => toPsi(caseState), [caseState]);
+  const resistance = drip(toDrip(caseState));
 
   const port = psi(findings);
   const blockers = classOneBlockers(findings);
   const headroom = investigationHeadroom(findings);
   const inClassOne = blockers.length === 0;
-  const understated = !headroom.exhausted && headroom.worstCaseClass !== port.riskClass;
+  const understated =
+    !headroom.exhausted && headroom.worstCaseClass !== port.riskClass;
 
   const test = diagnosticTests.find((t) => t.id === testId) ?? diagnosticTests[0];
   const lr = useMemo(() => testLikelihoodRatios(test), [test]);
@@ -189,7 +115,7 @@ export function CapTool() {
   ).length;
 
   const caseFields = [
-    { label: "Age", value: ageYears },
+    { label: "Age", value: caseState.ageYears },
     { label: "Abnormal", value: abnormalFindings },
     { label: "PSI", value: port.riskClass },
     { label: "Points", value: port.points },
@@ -197,14 +123,9 @@ export function CapTool() {
 
   return (
     <ToolFrame meta={meta} caseFields={caseFields}>
-      {/* ===================== SEVERITY ===================== */}
+      {/* ===================== ANSWERS ===================== */}
       <PanelRow>
-        <Panel title="How sick — Pneumonia Severity Index" span={3}>
-          {/* --- verdict ---
-              The summary sits on its own row. Sharing a row with the
-              line meant a longer site-of-care string widened the column
-              and shoved the line sideways, so it appeared to move for
-              reasons that had nothing to do with the score. --- */}
+        <Panel title="How sick — Pneumonia Severity Index" span={2}>
           <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
             <Figure
               label="Risk class"
@@ -217,9 +138,7 @@ export function CapTool() {
                 <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
                   Mortality
                 </dt>
-                <dd className="tnum m-0 font-mono text-[13px]">
-                  {port.mortalityBand}
-                </dd>
+                <dd className="tnum m-0 font-mono text-[13px]">{port.mortalityBand}</dd>
               </div>
               <div className="flex flex-col">
                 <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
@@ -237,69 +156,13 @@ export function CapTool() {
             bypassNote="Not scored yet. Any factor still in black would change that."
           />
 
-          {/* --- factors: the list is both the input and the breakdown --- */}
-          <div className="grid grid-cols-1 gap-x-10 gap-y-6 border-t border-hair pt-6 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="flex flex-col gap-4">
-              <SliderField
-                label="Age"
-                value={ageYears}
-                onChange={setAgeYears}
-                min={18}
-                max={100}
-                suffix="years"
-                note={`${sex === "male" ? ageYears : ageYears - 10} pts`}
-              />
-              <Segmented
-                value={sex}
-                onChange={setSex}
-                options={[
-                  { value: "male", label: "Male" },
-                  { value: "female", label: "Female" },
-                ]}
-              />
-              <p className="m-0 text-[11px] leading-relaxed text-faint">
-                Every year is a point. Usually the biggest single factor.
-              </p>
-            </div>
-
-            <FactorGroup label="History">
-              <Factor label="Nursing home" points={10} active={nursingHomeResident} onToggle={setNursingHomeResident} inert={inClassOne} />
-              <Factor label="Neoplastic" points={30} active={neoplasticDisease} onToggle={setNeoplasticDisease} />
-              <Factor label="Liver" points={20} active={liverDisease} onToggle={setLiverDisease} />
-              <Factor label="Heart failure" points={10} active={heartFailure} onToggle={setHeartFailure} />
-              <Factor label="Cerebrovascular" points={10} active={cerebrovascularDisease} onToggle={setCerebrovascularDisease} />
-              <Factor label="Renal" points={10} active={renalDisease} onToggle={setRenalDisease} />
-            </FactorGroup>
-
-            <FactorGroup label="Examination">
-              <Factor label="Altered mental status" points={20} active={alteredMentalStatus} onToggle={setAlteredMentalStatus} />
-              <Factor label="Resp rate ≥ 30" points={20} active={tachypnoea} onToggle={setTachypnoea} />
-              <Factor label="Systolic < 90" points={20} active={hypotension} onToggle={setHypotension} />
-              <Factor label="Temp < 35 or ≥ 40" points={15} active={temperatureExtreme} onToggle={setTemperatureExtreme} />
-              <Factor label="Pulse ≥ 125" points={10} active={tachycardia} onToggle={setTachycardia} />
-              <Factor label="SpO₂ < 90 or PaO₂ < 60" points={10} active={hypoxaemia} onToggle={setHypoxaemia} inert={inClassOne} />
-              <Factor label="Pleural effusion" points={10} active={pleuralEffusion} onToggle={setPleuralEffusion} inert={inClassOne} />
-            </FactorGroup>
-
-            <FactorGroup label="Results">
-              <Factor label="pH < 7.35" points={30} active={acidosis} onToggle={setAcidosis} inert={inClassOne} />
-              <Factor label="BUN ≥ 30" points={20} active={uraemia} onToggle={setUraemia} inert={inClassOne} />
-              <Factor label="Sodium < 130" points={20} active={hyponatraemia} onToggle={setHyponatraemia} inert={inClassOne} />
-              <Factor label="Glucose ≥ 250" points={10} active={hyperglycaemia} onToggle={setHyperglycaemia} inert={inClassOne} />
-              <Factor label="Haematocrit < 30" points={10} active={anaemia} onToggle={setAnaemia} inert={inClassOne} />
-            </FactorGroup>
-          </div>
-
-          {/* --- what the number will not tell you --- */}
-          <div className="flex flex-col gap-2 border-t border-hair pt-4">
-            <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
+          <div className="flex flex-col gap-2">
+            <p className="m-0 max-w-[70ch] text-[12.5px] leading-relaxed text-soft">
               {inClassOne ? (
                 <>
                   <b className="font-semibold text-ink">Class I — lowest risk.</b>{" "}
                   Only the factors still in black can change this: the five
-                  comorbidities, the four vital signs and mental status. Greyed
-                  factors score nothing unless one of those turns up, so no
-                  bloods are needed.
+                  comorbidities, the four vital signs and mental status.
                 </>
               ) : (
                 <>
@@ -310,114 +173,138 @@ export function CapTool() {
             </p>
 
             {!inClassOne && understated ? (
-              <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
+              <p className="m-0 max-w-[70ch] text-[12.5px] leading-relaxed text-soft">
                 <b className="font-semibold text-ink">
                   Class {port.riskClass} now. Could reach {headroom.worstCaseClass}.
                 </b>{" "}
-                {headroom.points} points sit in labs you have not marked
+                {headroom.points} points sit in results you have not marked
                 ({headroom.unscored.map((u) => u.label).join(", ")}). A normal
                 result and a missing one score the same.
               </p>
             ) : null}
 
-            <p className="m-0 max-w-[80ch] text-[11.5px] leading-relaxed text-faint">
-              This predicts death at 30 days, not whether to admit. Oxygen,
-              oral intake and who is at home are not in it.
+            <p className="m-0 max-w-[70ch] text-[11.5px] leading-relaxed text-faint">
+              This predicts death at 30 days, not whether to admit. Oxygen, oral
+              intake and who is at home are not in it.
             </p>
           </div>
         </Panel>
-      </PanelRow>
-      {/* ===================== RESISTANCE ===================== */}
-      <PanelRow>
-        <Panel title="Broad cover? — Drug Resistance in Pneumonia" span={3}>
-          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+
+        <Panel title="Broad cover? — DRIP">
+          <div className="flex flex-wrap items-end gap-x-8 gap-y-4">
             <Figure
               label="DRIP"
               value={resistance.points}
               size="focal"
-              caption={resistance.highRisk ? "cover for resistant organisms" : "standard CAP cover"}
+              caption={resistance.highRisk ? "broaden cover" : "standard cover"}
             />
-            <dl className="m-0 flex flex-wrap gap-x-10 gap-y-3 pb-1">
+            <dl className="m-0 flex flex-col gap-1.5 pb-1">
               <div className="flex flex-col">
                 <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
                   Threshold
                 </dt>
                 <dd className="tnum m-0 font-mono text-[13px]">{DRIP_THRESHOLD} or more</dd>
               </div>
-              <div className="flex flex-col">
-                <dt className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
-                  If broad
-                </dt>
-                <dd className="m-0 text-[13px] font-medium">
-                  {resistance.highRisk ? "Add MRSA and antipseudomonal cover" : "Not indicated"}
-                </dd>
-              </div>
             </dl>
           </div>
 
           <BandBar value={resistance.points} bands={DRIP_BANDS} bandNoun="" />
 
-          <div className="grid grid-cols-1 gap-x-10 gap-y-6 border-t border-hair pt-6 sm:grid-cols-2 xl:grid-cols-3">
-            <FactorGroup label="Major — 2 points each">
-              {DRIP_MAJOR.map((item) => (
-                <Factor
-                  key={item.key}
-                  label={item.label}
-                  points={item.points}
-                  active={resistanceFindings[item.key]}
-                  onToggle={(next) => setResistanceFactor(item.key, next)}
-                />
-              ))}
-            </FactorGroup>
+          <p className="m-0 max-w-[52ch] text-[12.5px] leading-relaxed text-soft">
+            {resistance.highRisk ? (
+              <>
+                <b className="font-semibold text-ink">Add MRSA and antipseudomonal cover.</b>{" "}
+                At this threshold the score misses about 2 in 10 resistant cases
+                and over-calls about 2 in 10 who are not.
+              </>
+            ) : (
+              <>
+                <b className="font-semibold text-ink">Standard CAP cover.</b>{" "}
+                {resistance.distanceToThreshold} more would cross. A negative is
+                the stronger result here — right about 9 times in 10.
+              </>
+            )}
+          </p>
 
-            <FactorGroup label="Minor — 1 point each">
-              {DRIP_MINOR.map((item) => (
-                <Factor
-                  key={item.key}
-                  label={item.label}
-                  points={item.points}
-                  active={resistanceFindings[item.key]}
-                  onToggle={(next) => setResistanceFactor(item.key, next)}
-                />
-              ))}
-            </FactorGroup>
-
-            <div className="flex flex-col gap-4">
-              <SeamNote seam={resistanceSeam} />
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2 border-t border-hair pt-4">
-            <p className="m-0 max-w-[80ch] text-[12.5px] leading-relaxed text-soft">
-              {resistance.highRisk ? (
-                <>
-                  <b className="font-semibold text-ink">
-                    {resistance.points} points. Broaden.
-                  </b>{" "}
-                  At this threshold the score misses about 2 in 10 resistant
-                  cases and over-calls about 2 in 10 who are not.
-                </>
-              ) : (
-                <>
-                  <b className="font-semibold text-ink">
-                    {resistance.points} points. Standard cover.
-                  </b>{" "}
-                  {resistance.distanceToThreshold} more would cross the
-                  threshold. A negative here is the stronger result — it is
-                  right about 9 times in 10.
-                </>
-              )}
-            </p>
-            <p className="m-0 max-w-[80ch] text-[11.5px] leading-relaxed text-faint">
-              Long-term care residence is shared with the severity panel above —
-              entering it once feeds both scores. HCAP is not this: it was
-              retired in 2019, and applying it here would roughly treble
-              antipseudomonal prescribing rather than raise it by half.
-            </p>
-          </div>
+          <SeamNote seam={resistanceSeam} />
         </Panel>
       </PanelRow>
 
+      {/* ===================== THE CASE ===================== */}
+      <PanelRow>
+        <Panel title="The case" span={3}>
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+              <div className="w-[210px]">
+                <SliderField
+                  label="Age"
+                  value={caseState.ageYears}
+                  onChange={(next) => setFact("ageYears", next)}
+                  min={18}
+                  max={100}
+                  suffix="years"
+                  note={`PSI ${caseState.sex === "male" ? caseState.ageYears : caseState.ageYears - 10}`}
+                />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                  Sex
+                </span>
+                <Segmented
+                  value={caseState.sex}
+                  onChange={(next) => setFact("sex", next)}
+                  options={[
+                    { value: "male", label: "Male" },
+                    { value: "female", label: "Female" },
+                  ]}
+                />
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+                Show
+              </span>
+              <Segmented
+                value={focus}
+                onChange={setFocus}
+                options={[
+                  { value: "both", label: "Both" },
+                  { value: "psi", label: "PSI only" },
+                  { value: "drip", label: "DRIP only" },
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-x-10 gap-y-6 border-t border-hair pt-6 sm:grid-cols-2 xl:grid-cols-4">
+            {CATEGORIES.map((category) => (
+              <FactorGroup key={category} label={CATEGORY_LABEL[category]}>
+                {factsIn(category).map((fact) => (
+                  <Factor
+                    key={fact.key}
+                    label={fact.label}
+                    active={caseState[fact.key]}
+                    onToggle={(next) => setFact(fact.key, next)}
+                    inert={!isFactLive(fact, { focus, psiInClassOne: inClassOne })}
+                    contributions={[
+                      ...(fact.psi !== undefined ? [{ score: "PSI", points: fact.psi }] : []),
+                      ...(fact.drip !== undefined ? [{ score: "DRIP", points: fact.drip }] : []),
+                    ]}
+                  />
+                ))}
+              </FactorGroup>
+            ))}
+          </div>
+
+          <p className="m-0 max-w-[86ch] text-[11.5px] leading-relaxed text-faint">
+            Grouped by where the information comes from, not by which score wants
+            it — the two share only long-term care out of twenty-nine facts, so
+            splitting by score meant answering history questions twice. Each row
+            says which score it feeds; <b>Show</b> hides the other one.
+          </p>
+        </Panel>
+      </PanelRow>
       {/* ===================== DIAGNOSIS / THERAPY ===================== */}
       <PanelRow>
         <Panel title="Is it pneumonia">
@@ -557,7 +444,7 @@ export function CapTool() {
                 tone="benefit"
                 items={stabilityCriteria.map((label) => ({
                   label,
-                  met: label !== "Saturations 90% or more" || !hypoxaemia,
+                  met: label !== "Saturations 90% or more" || !caseState.hypoxaemia,
                 }))}
               />
             </div>
