@@ -1,54 +1,26 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { ToolMeta } from "@/lib/content";
-import { Eyebrow } from "@/components/modules/Eyebrow";
-
-export interface CaseField {
-  label: string;
-  value: ReactNode;
-}
 
 /**
- * Chrome shared by every tool: identity, scope, and the case strip.
- * Thin on purpose — the canvas below belongs entirely to the tool, so
- * a visualisation-led tool can ignore the panel grid completely.
+ * Chrome shared by every tool: a title, the scope, and the disclaimer.
+ * Thin on purpose — the canvas belongs entirely to the tool, and the
+ * scores now carry the patient state, so the header does not repeat it.
  */
 export function ToolFrame({
   meta,
-  caseFields,
   children,
 }: {
   meta: ToolMeta;
-  caseFields?: CaseField[];
   children: ReactNode;
 }) {
   return (
     <div className="mx-auto flex max-w-[1400px] flex-col gap-7 px-6 py-6 lg:px-11">
-      <header className="flex flex-col gap-4 border-b border-rule pb-4">
-        <div className="flex flex-wrap items-end justify-between gap-6">
-          <div className="flex flex-col gap-2">
-            <Eyebrow>{meta.situation}</Eyebrow>
-            <h1 className="m-0 text-[23px] font-medium leading-tight tracking-[-0.025em] text-balance">
-              {meta.name}
-            </h1>
-            <p className="m-0 text-[12.5px] text-faint">{meta.scope}</p>
-          </div>
-
-          {caseFields?.length ? (
-            <dl className="m-0 flex flex-wrap gap-x-6 gap-y-2">
-              {caseFields.map((field) => (
-                <div key={field.label} className="flex flex-col gap-[3px]">
-                  <dt className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                    {field.label}
-                  </dt>
-                  <dd className="tnum m-0 font-mono text-[14px] tracking-[-0.02em]">
-                    {field.value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          ) : null}
-        </div>
+      <header className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-rule pb-3">
+        <h1 className="m-0 text-[17px] font-medium tracking-[-0.02em]">
+          {meta.name}
+        </h1>
+        <p className="m-0 text-[11.5px] text-faint">{meta.scope}</p>
       </header>
 
       {/* Every row after the first carries the dividing rule. */}
