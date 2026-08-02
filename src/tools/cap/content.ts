@@ -132,6 +132,27 @@ export const resistanceSeam: Seam = {
   note: "Neither position is wrong. If your hospital has a local rule, it wins; if it does not, DRIP is better than reasoning from HCAP out of habit.",
 };
 
+/**
+ * The steroid seam. The trial that made steroids standard for severe
+ * CAP excluded two of the groups the definition of severe CAP contains.
+ */
+export const steroidSeam: Seam = {
+  question: "Steroids in severe CAP — who was actually studied?",
+  positions: [
+    {
+      who: "ATS 2025",
+      stance:
+        "Recommends systemic glucocorticoids in hospitalised patients with severe CAP, on CAPE-COD and a meta-analysis of thirteen trials.",
+    },
+    {
+      who: "What CAPE-COD excluded",
+      stance:
+        "Septic shock and influenza, both excluded at inclusion. Septic shock is a major criterion for severe CAP, so the sickest group the definition covers is the group the trial did not study.",
+    },
+  ],
+  note: "Observational data do not support steroids in influenza or fungal infection, and harm is plausible. Outside those two groups the evidence is good; inside them the tool says so rather than pretending.",
+};
+
 export const hcapNote =
   "Not HCAP. That category was retired in 2019 — nursing-home residence alone does not broaden coverage. Broaden for documented prior MRSA or Pseudomonas, or recent hospitalisation with parenteral antibiotics.";
 

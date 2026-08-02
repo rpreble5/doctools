@@ -6,6 +6,7 @@ import { CompareBars } from "@/components/modules/CompareBars";
 import { CriteriaList } from "@/components/modules/CriteriaList";
 import { BandBar } from "@/components/modules/BandBar";
 import { Figure } from "@/components/modules/Figure";
+import { Proportion } from "@/components/modules/Proportion";
 import { IconArray, IconArrayKey } from "@/components/modules/IconArray";
 import { ProbabilityBand } from "@/components/modules/ProbabilityBand";
 import { SeamNote } from "@/components/modules/SeamNote";
@@ -17,6 +18,12 @@ import { ToolFrame } from "@/components/shell/ToolFrame";
 
 import { asPercent, canChangeManagement, revise } from "@/lib/probability";
 import { drip, DRIP_THRESHOLD } from "@/lib/scores/drip";
+import {
+  severeCap,
+  SEVERE_CAP_PERFORMANCE,
+  steroidGuidance,
+  STEROID_EFFECT,
+} from "@/lib/scores/severeCap";
 import {
   classOneBlockers,
   investigationHeadroom,
@@ -31,6 +38,7 @@ import {
   isFactLive,
   toDrip,
   toPsi,
+  toSevereCap,
   type CaseState,
   type Focus,
 } from "./facts";
@@ -46,6 +54,7 @@ import {
   practiceGap,
   regimensFor,
   resistanceSeam,
+  steroidSeam,
   stabilityCriteria,
   testLikelihoodRatios,
   trajectory,
@@ -76,7 +85,7 @@ export function CapTool() {
    * cut point, so it is a toggle that starts off.
    */
   const [caseState, setCaseState] = useState<CaseState>(emptyCase);
-  const [focus, setFocus] = useState<Focus>("both");
+  const [focus, setFocus] = useState<Focus>("all");
 
   function setFact<K extends keyof CaseState>(key: K, next: CaseState[K]) {
     setCaseState((prev) => ({ ...prev, [key]: next }));
@@ -93,6 +102,12 @@ export function CapTool() {
 
   const findings = useMemo(() => toPsi(caseState), [caseState]);
   const resistance = drip(toDrip(caseState));
+  const severity = severeCap(toSevereCap(caseState));
+  const steroids = steroidGuidance({
+    severe: severity.severe,
+    influenza: caseState.influenza,
+    septicShock: caseState.septicShock,
+  });
 
   const port = psi(findings);
   const blockers = classOneBlockers(findings);
@@ -210,23 +225,144 @@ export function CapTool() {
 
           <BandBar value={resistance.points} bands={DRIP_BANDS} bandNoun="" />
 
-          <p className="m-0 max-w-[52ch] text-[12.5px] leading-relaxed text-soft">
-            {resistance.highRisk ? (
-              <>
-                <b className="font-semibold text-ink">Add MRSA and antipseudomonal cover.</b>{" "}
-                At this threshold the score misses about 2 in 10 resistant cases
-                and over-calls about 2 in 10 who are not.
-              </>
-            ) : (
-              <>
+          {resistance.highRisk ? (
+            <div className="flex flex-col gap-2">
+              <p className="m-0 max-w-[52ch] text-[12.5px] leading-relaxed text-soft">
+                <b className="font-semibold text-ink">
+                  Add MRSA and antipseudomonal cover.
+                </b>{" "}
+                At this threshold, of 10 patients who really are resistant:
+              </p>
+              <Proportion
+                total={10}
+                marks={[
+                  { count: 8, tone: "accent" },
+                  { count: 2, tone: "harm" },
+                ]}
+                label="8 caught, 2 missed"
+              />
+              <Proportion
+                total={10}
+                marks={[
+                  { count: 8, tone: "benefit" },
+                  { count: 2, tone: "harm" },
+                ]}
+                label="of 10 who are not, 2 called anyway"
+              />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <p className="m-0 max-w-[52ch] text-[12.5px] leading-relaxed text-soft">
                 <b className="font-semibold text-ink">Standard CAP cover.</b>{" "}
                 {resistance.distanceToThreshold} more would cross. A negative is
-                the stronger result here — right about 9 times in 10.
-              </>
-            )}
-          </p>
+                the stronger result here:
+              </p>
+              <Proportion
+                total={10}
+                marks={[
+                  { count: 9, tone: "benefit" },
+                  { count: 1, tone: "harm" },
+                ]}
+                label="9 of 10 negatives are genuinely not resistant"
+              />
+            </div>
+          )}
 
           <SeamNote seam={resistanceSeam} />
+        </Panel>
+      </PanelRow>
+
+      {/* ===================== SEVERE CAP + STEROIDS ===================== */}
+      <PanelRow>
+        <Panel title="Severe CAP, and steroids" span={2}>
+          <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
+            <Figure
+              label="IDSA/ATS"
+              value={severity.severe ? "Severe" : "Not severe"}
+              size="panel"
+              caption={
+                severity.metBy === "major"
+                  ? `${severity.majorCount} major criterion met`
+                  : severity.metBy === "minor"
+                    ? `${severity.minorCount} minor criteria`
+                    : severity.minorCount > 0
+                      ? `${severity.minorCount} of 3 minor`
+                      : "no criteria met"
+              }
+            />
+            <div className="flex flex-col gap-1.5 pb-1">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                Steroids
+              </span>
+              <span className="text-[13px] font-medium">
+                {steroids.verdict === "indicated"
+                  ? "Indicated"
+                  : steroids.verdict === "outside-trial"
+                    ? "Outside the evidence"
+                    : "Not indicated"}
+              </span>
+            </div>
+          </div>
+
+          <p className="m-0 max-w-[70ch] text-[12.5px] leading-relaxed text-soft">
+            {steroids.regimen ? (
+              <b className="font-semibold text-ink">{steroids.regimen}. </b>
+            ) : null}
+            {steroids.reason}
+          </p>
+
+          {steroids.verdict === "indicated" ? (
+            <div className="flex flex-col gap-2">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
+                Per 100 treated · {STEROID_EFFECT.trial}
+              </span>
+              <div className="flex flex-col gap-1.5">
+                <span className="flex flex-wrap items-center gap-3">
+                  <Proportion
+                    total={20}
+                    marks={[{ count: STEROID_EFFECT.controlDeathsPerHundred / 5, tone: "harm" }]}
+                    label={`${STEROID_EFFECT.controlDeathsPerHundred} die without`}
+                  />
+                </span>
+                <span className="flex flex-wrap items-center gap-3">
+                  <Proportion
+                    total={20}
+                    marks={[
+                      { count: STEROID_EFFECT.treatedDeathsPerHundred / 5, tone: "harm" },
+                      { count: STEROID_EFFECT.deathsAvertedPerHundred / 5, tone: "benefit" },
+                    ]}
+                    label={`${STEROID_EFFECT.treatedDeathsPerHundred} die with — ${STEROID_EFFECT.deathsAvertedPerHundred} averted`}
+                  />
+                </span>
+              </div>
+              <p className="m-0 text-[11.5px] text-faint">
+                Number needed to treat {STEROID_EFFECT.nnt}. Each square is five
+                patients.
+              </p>
+            </div>
+          ) : null}
+
+          <div className="flex flex-col gap-2 border-t border-hair pt-4">
+            <span className="flex flex-wrap items-center gap-3 text-[12.5px] text-soft">
+              <Proportion
+                total={10}
+                marks={[
+                  { count: SEVERE_CAP_PERFORMANCE.caughtPerTen, tone: "accent" },
+                  { count: SEVERE_CAP_PERFORMANCE.missedPerTen, tone: "harm" },
+                ]}
+              />
+              <span>
+                Catches about {SEVERE_CAP_PERFORMANCE.caughtPerTen} in 10 with
+                severe CAP. <b className="font-semibold text-ink">Not meeting
+                the criteria is not reassurance</b> — it rules in, it does not
+                rule out.
+              </span>
+            </span>
+          </div>
+        </Panel>
+
+        <Panel title="Where it is unsettled">
+          <SeamNote seam={steroidSeam} />
         </Panel>
       </PanelRow>
 
@@ -269,9 +405,10 @@ export function CapTool() {
                 value={focus}
                 onChange={setFocus}
                 options={[
-                  { value: "both", label: "Both" },
-                  { value: "psi", label: "PSI only" },
-                  { value: "drip", label: "DRIP only" },
+                  { value: "all", label: "All" },
+                  { value: "psi", label: "PSI" },
+                  { value: "drip", label: "DRIP" },
+                  { value: "severe", label: "Severe" },
                 ]}
               />
             </div>

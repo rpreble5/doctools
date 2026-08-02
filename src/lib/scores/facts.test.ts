@@ -5,10 +5,12 @@ import {
   isFactLive,
   toDrip,
   toPsi,
+  toSevereCap,
   type CaseFact,
 } from "@/tools/cap/facts";
 import { drip } from "./drip";
 import { psi } from "./psi";
+import { severeCap } from "./severeCap";
 
 const factFor = (key: string): CaseFact =>
   CASE_FACTS.find((f) => f.key === key)!;
@@ -42,6 +44,46 @@ describe("the case feeds both scores", () => {
     }
   });
 
+  it("declares a severe-CAP criterion only where one is actually counted", () => {
+    for (const fact of CASE_FACTS) {
+      const base = emptyCase();
+      const withFact = { ...base, [fact.key]: true };
+      const before = severeCap(toSevereCap(base));
+      const after = severeCap(toSevereCap(withFact));
+
+      if (fact.severe === "major") {
+        expect(after.majorCount - before.majorCount, fact.key).toBe(1);
+      } else if (fact.severe === "minor") {
+        expect(after.minorCount - before.minorCount, fact.key).toBe(1);
+      } else if (fact.key === "uraemia") {
+        // The one documented exception: PSI scores BUN at 30, severe CAP
+        // at 20, and thirty is twenty. Asserted on its own below.
+        expect(after.minorCount - before.minorCount).toBe(1);
+      } else {
+        expect(
+          after.majorCount + after.minorCount,
+          `${fact.key} should not move severe CAP`,
+        ).toBe(before.majorCount + before.minorCount);
+      }
+    }
+  });
+
+  it("lets BUN over 30 satisfy the severe-CAP threshold of 20", () => {
+    const base = emptyCase();
+    // PSI's row alone, without touching the severe-CAP row.
+    const withPsiBun = { ...base, uraemia: true };
+    expect(toSevereCap(withPsiBun).uraemiaOver20).toBe(true);
+    expect(severeCap(toSevereCap(withPsiBun)).minorCount).toBe(1);
+  });
+
+  it("does not let PSI's temperature fact imply hypothermia", () => {
+    // PSI's fact is "under 35 or 40 and over" — the high limb does not
+    // mean the patient is cold.
+    const base = emptyCase();
+    const withPsiTemp = { ...base, temperatureExtreme: true };
+    expect(toSevereCap(withPsiTemp).hypothermiaUnder36).toBe(false);
+  });
+
   it("shares exactly one fact between the two scores", () => {
     const shared = CASE_FACTS.filter(
       (f) => f.psi !== undefined && f.drip !== undefined,
@@ -72,20 +114,20 @@ describe("isFactLive", () => {
 
   it("shows everything when focus is both", () => {
     for (const fact of CASE_FACTS) {
-      expect(isFactLive(fact, { focus: "both", psiInClassOne: false })).toBe(true);
+      expect(isFactLive(fact, { focus: "all", psiInClassOne: false })).toBe(true);
     }
   });
 
   it("dims PSI-only non-gate facts in class I", () => {
-    expect(isFactLive(psiOnly, { focus: "both", psiInClassOne: true })).toBe(false);
+    expect(isFactLive(psiOnly, { focus: "all", psiInClassOne: true })).toBe(false);
   });
 
   it("keeps gate facts live in class I — they are what breaks it", () => {
-    expect(isFactLive(gate, { focus: "both", psiInClassOne: true })).toBe(true);
+    expect(isFactLive(gate, { focus: "all", psiInClassOne: true })).toBe(true);
   });
 
   it("keeps DRIP facts live in class I — DRIP is still counting", () => {
-    expect(isFactLive(dripOnly, { focus: "both", psiInClassOne: true })).toBe(true);
-    expect(isFactLive(shared, { focus: "both", psiInClassOne: true })).toBe(true);
+    expect(isFactLive(dripOnly, { focus: "all", psiInClassOne: true })).toBe(true);
+    expect(isFactLive(shared, { focus: "all", psiInClassOne: true })).toBe(true);
   });
 });
