@@ -23,8 +23,8 @@ export function ToolFrame({
   children: ReactNode;
 }) {
   return (
-    <div className="mx-auto flex max-w-[1400px] flex-col gap-10 px-6 py-10 lg:px-11">
-      <header className="flex flex-col gap-6 border-b border-rule pb-6">
+    <div className="mx-auto flex max-w-[1400px] flex-col gap-7 px-6 py-6 lg:px-11">
+      <header className="flex flex-col gap-4 border-b border-rule pb-4">
         <div className="flex flex-wrap items-end justify-between gap-6">
           <div className="flex flex-col gap-2">
             <Eyebrow>{meta.situation}</Eyebrow>
@@ -52,7 +52,7 @@ export function ToolFrame({
       </header>
 
       {/* Every row after the first carries the dividing rule. */}
-      <main className="flex flex-col gap-10 [&>*+*]:border-t [&>*+*]:border-hair [&>*+*]:pt-10">
+      <main className="flex flex-col gap-7 [&>*+*]:border-t [&>*+*]:border-hair [&>*+*]:pt-7">
         {children}
       </main>
 
