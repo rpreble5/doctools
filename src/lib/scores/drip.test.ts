@@ -14,9 +14,9 @@ const none: DripFindings = {
   longTermCare: false,
   priorDrugResistantInfection: false,
   chronicPulmonaryDisease: false,
-  hospitalisedWithin60Days: false,
+  hospitalizedWithin60Days: false,
   poorFunctionalStatus: false,
-  mrsaColonisation: false,
+  mrsaColonization: false,
   woundCare: false,
   gastricAcidSuppression: false,
 };
@@ -27,9 +27,9 @@ const all: DripFindings = {
   longTermCare: true,
   priorDrugResistantInfection: true,
   chronicPulmonaryDisease: true,
-  hospitalisedWithin60Days: true,
+  hospitalizedWithin60Days: true,
   poorFunctionalStatus: true,
-  mrsaColonisation: true,
+  mrsaColonization: true,
   woundCare: true,
   gastricAcidSuppression: true,
 };
@@ -83,7 +83,7 @@ describe("drip", () => {
     const fourMinors = drip({
       ...none,
       chronicPulmonaryDisease: true,
-      hospitalisedWithin60Days: true,
+      hospitalizedWithin60Days: true,
       poorFunctionalStatus: true,
       woundCare: true,
     });
@@ -98,11 +98,11 @@ describe("drip", () => {
   });
 
   it("lists what is contributing", () => {
-    const r = drip({ ...none, tubeFeeding: true, mrsaColonisation: true });
+    const r = drip({ ...none, tubeFeeding: true, mrsaColonization: true });
     expect(r.points).toBe(3);
     expect(r.contributions).toEqual([
       { label: "Tube feeding", points: 2 },
-      { label: "MRSA colonisation, 1 y", points: 1 },
+      { label: "MRSA colonization, 1 y", points: 1 },
     ]);
   });
 });

@@ -53,7 +53,7 @@ export function BandBar({
 
   return (
     <div className={`flex flex-col ${bypassed ? "opacity-40" : ""}`}>
-      {/* class letters, centred over their span */}
+      {/* class letters, centered over their span */}
       <div className="relative h-4">
         {bands.map((band, i) => {
           const from = i === 0 ? 0 : bands[i - 1].upTo;

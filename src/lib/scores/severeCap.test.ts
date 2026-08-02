@@ -11,11 +11,11 @@ import {
 const none: SevereCapFindings = {
   septicShock: false,
   mechanicalVentilation: false,
-  tachypnoea: false,
+  tachypnea: false,
   pafiUnder250: false,
   multilobarInfiltrates: false,
   confusion: false,
-  uraemiaOver20: false,
+  uremiaOver20: false,
   leukopenia: false,
   thrombocytopenia: false,
   hypothermiaUnder36: false,
@@ -39,11 +39,11 @@ describe("severeCap", () => {
   });
 
   it("is not severe on one or two minor criteria", () => {
-    const one = severeCap({ ...none, tachypnoea: true });
+    const one = severeCap({ ...none, tachypnea: true });
     expect(one.severe).toBe(false);
     expect(one.minorShortfall).toBe(2);
 
-    const two = severeCap({ ...none, tachypnoea: true, confusion: true });
+    const two = severeCap({ ...none, tachypnea: true, confusion: true });
     expect(two.severe).toBe(false);
     expect(two.minorShortfall).toBe(1);
   });
@@ -51,9 +51,9 @@ describe("severeCap", () => {
   it("is severe on exactly three minor criteria", () => {
     const r = severeCap({
       ...none,
-      tachypnoea: true,
+      tachypnea: true,
       confusion: true,
-      uraemiaOver20: true,
+      uremiaOver20: true,
     });
     expect(r.severe).toBe(true);
     expect(r.metBy).toBe("minor");
@@ -74,9 +74,9 @@ describe("severeCap", () => {
     const r = severeCap({
       ...none,
       septicShock: true,
-      tachypnoea: true,
+      tachypnea: true,
       confusion: true,
-      uraemiaOver20: true,
+      uremiaOver20: true,
     });
     expect(r.metBy).toBe("major");
     expect(r.majorCount).toBe(1);

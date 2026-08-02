@@ -1,5 +1,5 @@
 /**
- * One hundred people, coloured by what happens to them.
+ * One hundred people, colored by what happens to them.
  *
  * Clinicians correctly estimate treatment harms about 13% of the time
  * and benefits about 11% — underestimating harm and overestimating

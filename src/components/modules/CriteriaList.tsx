@@ -8,7 +8,7 @@ export interface CriterionItem {
 }
 
 /**
- * A set of yes/no criteria. The dot is the only coloured mark; the
+ * A set of yes/no criteria. The dot is the only colored mark; the
  * label stays neutral whatever its state.
  */
 export function CriteriaList({

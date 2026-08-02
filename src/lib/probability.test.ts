@@ -72,7 +72,7 @@ describe("threshold model", () => {
     expect(canChangeManagement(0.95, weak, thresholds)).toBe(false);
   });
 
-  it("recognises a test that can change management", () => {
+  it("recognizes a test that can change management", () => {
     const strong = likelihoodRatios(0.95, 0.95);
     expect(canChangeManagement(0.3, strong, thresholds)).toBe(true);
   });

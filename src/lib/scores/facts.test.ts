@@ -70,19 +70,19 @@ describe("the case feeds both scores", () => {
     const base = emptyCase();
 
     const normal = { ...base, bun: "under20" as const };
-    expect(toPsi(normal).uraemia).toBe(false);
-    expect(toSevereCap(normal).uraemiaOver20).toBe(false);
+    expect(toPsi(normal).uremia).toBe(false);
+    expect(toSevereCap(normal).uremiaOver20).toBe(false);
 
     // Twenty counts for severe CAP and not for PSI.
     const twenty = { ...base, bun: "over20" as const };
-    expect(toPsi(twenty).uraemia).toBe(false);
-    expect(toSevereCap(twenty).uraemiaOver20).toBe(true);
+    expect(toPsi(twenty).uremia).toBe(false);
+    expect(toSevereCap(twenty).uremiaOver20).toBe(true);
     expect(psi(toPsi(twenty)).points).toBe(psi(toPsi(normal)).points);
 
     // Thirty counts for both, because thirty is also twenty.
     const thirty = { ...base, bun: "over30" as const };
-    expect(toPsi(thirty).uraemia).toBe(true);
-    expect(toSevereCap(thirty).uraemiaOver20).toBe(true);
+    expect(toPsi(thirty).uremia).toBe(true);
+    expect(toSevereCap(thirty).uremiaOver20).toBe(true);
     expect(psi(toPsi(thirty)).points - psi(toPsi(normal)).points).toBe(20);
   });
 

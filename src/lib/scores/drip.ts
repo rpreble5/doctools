@@ -2,7 +2,7 @@
  * Drug Resistance in Pneumonia (DRIP) score.
  *
  * Webb et al, Antimicrob Agents Chemother 2016. Derived and
- * prospectively validated across multiple centres to answer the
+ * prospectively validated across multiple centers to answer the
  * question HCAP used to answer badly: does this patient need cover for
  * MRSA or Pseudomonas? Awaiting attending review.
  *
@@ -29,10 +29,10 @@ export interface DripFindings {
 
   // minor — one point each
   chronicPulmonaryDisease: boolean;
-  hospitalisedWithin60Days: boolean;
+  hospitalizedWithin60Days: boolean;
   poorFunctionalStatus: boolean;
-  /** MRSA colonisation in the previous year. */
-  mrsaColonisation: boolean;
+  /** MRSA colonization in the previous year. */
+  mrsaColonization: boolean;
   woundCare: boolean;
   gastricAcidSuppression: boolean;
 }
@@ -52,9 +52,9 @@ export const DRIP_MAJOR: DripItem[] = [
 
 export const DRIP_MINOR: DripItem[] = [
   { key: "chronicPulmonaryDisease", label: "Chronic pulmonary disease", points: 1 },
-  { key: "hospitalisedWithin60Days", label: "Hospitalised within 60 days", points: 1 },
+  { key: "hospitalizedWithin60Days", label: "Hospitalized within 60 days", points: 1 },
   { key: "poorFunctionalStatus", label: "Poor functional status", points: 1 },
-  { key: "mrsaColonisation", label: "MRSA colonisation, 1 y", points: 1 },
+  { key: "mrsaColonization", label: "MRSA colonization, 1 y", points: 1 },
   { key: "woundCare", label: "Wound care", points: 1 },
   { key: "gastricAcidSuppression", label: "Gastric acid suppression", points: 1 },
 ];

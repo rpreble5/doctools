@@ -25,7 +25,7 @@ reference cases. A wrong tool is worse than no tool.
 Knowing you are outside the tool's assumptions is part of the framework
 it teaches.
 
-## The two colour rules
+## The two color rules
 
 Both are enforced by convention, not by the compiler. Watch for them in
 review.
@@ -33,9 +33,9 @@ review.
 1. **The interface is neutral.** Chrome — labels, rules, borders,
    headings, buttons, controls — uses only `ink` / `soft` / `faint` /
    `rule` / `hair` / `sunk`.
-2. **Colour belongs to data.** The `--d-*` ramp appears only inside data
+2. **Color belongs to data.** The `--d-*` ramp appears only inside data
    marks: chart fills, criteria dots, band zones, the single alarm. A
-   colour on a label is a bug.
+   color on a label is a bug.
 
 `alarm` is used at most once per tool. That restraint is the mechanism —
 in a muted system one saturated note carries weight that
@@ -48,7 +48,7 @@ not from ink.
 ## Layout
 
 Panels are **co-equal**. No cards, no shadows, no hero element, no lead.
-Structure comes from grid rules and whitespace. Visualisations are sized
+Structure comes from grid rules and whitespace. Visualizations are sized
 to their content, not inflated for drama.
 
 ## Architecture
@@ -66,7 +66,7 @@ Three layers, in dependency order:
 
 `src/components/shell/` holds chrome shared by every tool. It is
 deliberately thin: the canvas belongs to the tool, so a
-visualisation-led tool can ignore the panel grid entirely.
+visualization-led tool can ignore the panel grid entirely.
 
 ## The reasoning spine
 
