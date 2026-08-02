@@ -41,13 +41,11 @@ export type FactKey =
   | "alteredMentalStatus"
   | "tachypnoea"
   | "hypotension"
-  | "temperatureExtreme"
   | "tachycardia"
   | "hypoxaemia"
   | "pleuralEffusion"
   // results
   | "acidosis"
-  | "uraemia"
   | "hyponatraemia"
   | "hyperglycaemia"
   | "anaemia"
@@ -56,10 +54,8 @@ export type FactKey =
   | "mechanicalVentilation"
   // severe CAP — minor not already collected
   | "multilobarInfiltrates"
-  | "hypothermiaUnder36"
   | "hypotensionNeedingFluids"
   | "pafiUnder250"
-  | "uraemiaOver20"
   | "leukopenia"
   | "thrombocytopenia"
   // context for the steroid decision
@@ -102,28 +98,98 @@ export const CASE_FACTS: CaseFact[] = [
   { key: "alteredMentalStatus", label: "Altered mental status", category: "examination", psi: 20, severe: "minor" },
   { key: "tachypnoea", label: "Resp rate ≥ 30", category: "examination", psi: 20, severe: "minor" },
   { key: "hypotension", label: "Systolic < 90", category: "examination", psi: 20 },
-  { key: "temperatureExtreme", label: "Temp < 35 or ≥ 40", category: "examination", psi: 15 },
   { key: "tachycardia", label: "Pulse ≥ 125", category: "examination", psi: 10 },
   { key: "hypoxaemia", label: "SpO₂ < 90", category: "examination", psi: 10 },
+  { key: "pafiUnder250", label: "PaO₂/FiO₂ ≤ 250", category: "examination", severe: "minor" },
   { key: "pleuralEffusion", label: "Pleural effusion", category: "examination", psi: 10 },
   { key: "septicShock", label: "Septic shock, on pressors", category: "examination", severe: "major" },
   { key: "mechanicalVentilation", label: "Needs ventilation", category: "examination", severe: "major" },
   { key: "hypotensionNeedingFluids", label: "Hypotension needing fluids", category: "examination", severe: "minor" },
-  { key: "hypothermiaUnder36", label: "Temp < 36 °C", category: "examination", severe: "minor" },
   { key: "multilobarInfiltrates", label: "Multilobar infiltrates", category: "examination", severe: "minor" },
 
   // ---- results ----
   { key: "acidosis", label: "pH < 7.35", category: "results", psi: 30 },
-  { key: "uraemia", label: "BUN ≥ 30", category: "results", psi: 20 },
   { key: "hyponatraemia", label: "Sodium < 130", category: "results", psi: 20 },
   { key: "hyperglycaemia", label: "Glucose ≥ 250", category: "results", psi: 10 },
   { key: "anaemia", label: "Haematocrit < 30", category: "results", psi: 10 },
-  { key: "uraemiaOver20", label: "BUN ≥ 20", category: "results", severe: "minor" },
-  { key: "pafiUnder250", label: "PaO₂/FiO₂ ≤ 250", category: "results", severe: "minor" },
   { key: "leukopenia", label: "White cells < 4000", category: "results", severe: "minor" },
   { key: "thrombocytopenia", label: "Platelets < 100k", category: "results", severe: "minor" },
   { key: "influenza", label: "Influenza positive", category: "results", steroidContext: true },
 ];
+
+/* ------------------------------------------------------------------
+   Facts with more than two states
+
+   Temperature and BUN each appear in two scores at different cut
+   points, which as separate checkboxes produced rows that contradicted
+   the arithmetic: ticking BUN ≥ 30 made severe CAP count it, while the
+   BUN ≥ 20 row still read as inactive. Temperature was worse — PSI's
+   fact is a disjunction, so "under 35 or 40 and over" beside "under 36"
+   asked the reader to resolve the logic themselves.
+
+   One row with mutually exclusive levels states the measurement once
+   and lets each score take what it needs.
+   ------------------------------------------------------------------ */
+
+export interface LevelOption {
+  value: string;
+  label: string;
+  psi?: number;
+  drip?: number;
+  severe?: "major" | "minor";
+}
+
+export interface CaseLevel {
+  key: LevelKey;
+  label: string;
+  category: Category;
+  options: LevelOption[];
+}
+
+export type LevelKey = "temperature" | "bun";
+
+export const CASE_LEVELS: CaseLevel[] = [
+  {
+    key: "temperature",
+    label: "Temperature",
+    category: "examination",
+    options: [
+      { value: "under35", label: "< 35", psi: 15, severe: "minor" },
+      { value: "band35to36", label: "35–36", severe: "minor" },
+      { value: "normal", label: "36–40" },
+      { value: "over40", label: "≥ 40", psi: 15 },
+    ],
+  },
+  {
+    key: "bun",
+    label: "BUN",
+    category: "results",
+    options: [
+      { value: "under20", label: "< 20" },
+      { value: "over20", label: "≥ 20", severe: "minor" },
+      { value: "over30", label: "≥ 30", psi: 20, severe: "minor" },
+    ],
+  },
+];
+
+export const levelsIn = (category: Category): CaseLevel[] =>
+  CASE_LEVELS.filter((l) => l.category === category);
+
+/**
+ * A levelled fact is live if any of its bands feeds the focused score.
+ * Class I does not dim either of these, because both also feed severe
+ * CAP, which keeps counting after PSI stops.
+ */
+export function isLevelLive(level: CaseLevel, focus: Focus): boolean {
+  if (focus === "all") return true;
+  return level.options.some((option) =>
+    focus === "psi"
+      ? option.psi !== undefined
+      : focus === "drip"
+        ? option.drip !== undefined
+        : option.severe !== undefined,
+  );
+}
 
 export const CATEGORY_LABEL: Record<Category, string> = {
   comorbidity: "Comorbidity",
@@ -149,13 +215,21 @@ export const factsIn = (category: Category): CaseFact[] =>
 export type CaseState = Record<FactKey, boolean> & {
   ageYears: number;
   sex: "male" | "female";
+  temperature: "under35" | "band35to36" | "normal" | "over40";
+  bun: "under20" | "over20" | "over30";
 };
 
 export const emptyCase = (): CaseState => {
   const facts = Object.fromEntries(
     CASE_FACTS.map((f) => [f.key, false]),
   ) as Record<FactKey, boolean>;
-  return { ...facts, ageYears: 65, sex: "male" };
+  return {
+    ...facts,
+    ageYears: 65,
+    sex: "male",
+    temperature: "normal",
+    bun: "under20",
+  };
 };
 
 export const toPsi = (c: CaseState): PsiFindings => ({
@@ -170,12 +244,12 @@ export const toPsi = (c: CaseState): PsiFindings => ({
   alteredMentalStatus: c.alteredMentalStatus,
   tachypnoea: c.tachypnoea,
   hypotension: c.hypotension,
-  temperatureExtreme: c.temperatureExtreme,
+  temperatureExtreme: c.temperature === "under35" || c.temperature === "over40",
   tachycardia: c.tachycardia,
   pleuralEffusion: c.pleuralEffusion,
   hypoxaemia: c.hypoxaemia,
   acidosis: c.acidosis,
-  uraemia: c.uraemia,
+  uraemia: c.bun === "over30",
   hyponatraemia: c.hyponatraemia,
   hyperglycaemia: c.hyperglycaemia,
   anaemia: c.anaemia,
@@ -198,10 +272,10 @@ export const toSevereCap = (c: CaseState): SevereCapFindings => ({
   pafiUnder250: c.pafiUnder250,
   multilobarInfiltrates: c.multilobarInfiltrates,
   confusion: c.alteredMentalStatus,
-  uraemiaOver20: c.uraemiaOver20 || c.uraemia,
+  uraemiaOver20: c.bun === "over20" || c.bun === "over30",
   leukopenia: c.leukopenia,
   thrombocytopenia: c.thrombocytopenia,
-  hypothermiaUnder36: c.hypothermiaUnder36,
+  hypothermiaUnder36: c.temperature === "under35" || c.temperature === "band35to36",
   hypotensionNeedingFluids: c.hypotensionNeedingFluids,
 });
 

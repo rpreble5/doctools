@@ -13,7 +13,7 @@ import { ProbabilityBand } from "@/components/modules/ProbabilityBand";
 import { SeamNote } from "@/components/modules/SeamNote";
 import { Trajectory } from "@/components/modules/Trajectory";
 import { Segmented, ToggleChip } from "@/components/modules/controls";
-import { Factor, FactorGroup } from "@/components/modules/FactorList";
+import { Factor, FactorGroup, FactorLevels } from "@/components/modules/FactorList";
 import { Panel, PanelRow } from "@/components/shell/Panel";
 import { ToolFrame } from "@/components/shell/ToolFrame";
 
@@ -36,6 +36,8 @@ import {
   CATEGORY_LABEL,
   emptyCase,
   factsIn,
+  levelsIn,
+  isLevelLive,
   isFactLive,
   toDrip,
   toPsi,
@@ -245,6 +247,29 @@ export function CapTool() {
                   </div>
                 ) : null}
               <FactorGroup label={CATEGORY_LABEL[category]}>
+                {levelsIn(category).map((level) => (
+                  <FactorLevels
+                    key={level.key}
+                    label={level.label}
+                    value={caseState[level.key]}
+                    onChange={(next) =>
+                      setFact(level.key, next as CaseState[typeof level.key])
+                    }
+                    inert={!isLevelLive(level, focus)}
+                    options={level.options.map((option) => ({
+                      value: option.value,
+                      label: option.label,
+                      contributions: [
+                        ...(option.psi !== undefined
+                          ? [{ score: "PSI", points: option.psi }]
+                          : []),
+                        ...(option.severe !== undefined
+                          ? [{ score: "SEVERE", points: 0 }]
+                          : []),
+                      ],
+                    }))}
+                  />
+                ))}
                 {factsIn(category).map((fact) => (
                   <Factor
                     key={fact.key}

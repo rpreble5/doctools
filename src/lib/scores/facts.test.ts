@@ -1,12 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   CASE_FACTS,
+  CASE_LEVELS,
   emptyCase,
   isFactLive,
   toDrip,
   toPsi,
   toSevereCap,
   type CaseFact,
+  type CaseState,
 } from "@/tools/cap/facts";
 import { drip } from "./drip";
 import { psi } from "./psi";
@@ -55,10 +57,6 @@ describe("the case feeds both scores", () => {
         expect(after.majorCount - before.majorCount, fact.key).toBe(1);
       } else if (fact.severe === "minor") {
         expect(after.minorCount - before.minorCount, fact.key).toBe(1);
-      } else if (fact.key === "uraemia") {
-        // The one documented exception: PSI scores BUN at 30, severe CAP
-        // at 20, and thirty is twenty. Asserted on its own below.
-        expect(after.minorCount - before.minorCount).toBe(1);
       } else {
         expect(
           after.majorCount + after.minorCount,
@@ -68,20 +66,65 @@ describe("the case feeds both scores", () => {
     }
   });
 
-  it("lets BUN over 30 satisfy the severe-CAP threshold of 20", () => {
+  it("reads one BUN level into both scores at their own cut points", () => {
     const base = emptyCase();
-    // PSI's row alone, without touching the severe-CAP row.
-    const withPsiBun = { ...base, uraemia: true };
-    expect(toSevereCap(withPsiBun).uraemiaOver20).toBe(true);
-    expect(severeCap(toSevereCap(withPsiBun)).minorCount).toBe(1);
+
+    const normal = { ...base, bun: "under20" as const };
+    expect(toPsi(normal).uraemia).toBe(false);
+    expect(toSevereCap(normal).uraemiaOver20).toBe(false);
+
+    // Twenty counts for severe CAP and not for PSI.
+    const twenty = { ...base, bun: "over20" as const };
+    expect(toPsi(twenty).uraemia).toBe(false);
+    expect(toSevereCap(twenty).uraemiaOver20).toBe(true);
+    expect(psi(toPsi(twenty)).points).toBe(psi(toPsi(normal)).points);
+
+    // Thirty counts for both, because thirty is also twenty.
+    const thirty = { ...base, bun: "over30" as const };
+    expect(toPsi(thirty).uraemia).toBe(true);
+    expect(toSevereCap(thirty).uraemiaOver20).toBe(true);
+    expect(psi(toPsi(thirty)).points - psi(toPsi(normal)).points).toBe(20);
   });
 
-  it("does not let PSI's temperature fact imply hypothermia", () => {
-    // PSI's fact is "under 35 or 40 and over" — the high limb does not
-    // mean the patient is cold.
+  it("reads one temperature level into both scores, including the high limb", () => {
     const base = emptyCase();
-    const withPsiTemp = { ...base, temperatureExtreme: true };
-    expect(toSevereCap(withPsiTemp).hypothermiaUnder36).toBe(false);
+    const at = (temperature: CaseState["temperature"]) => ({ ...base, temperature });
+
+    // Cold enough for both.
+    expect(toPsi(at("under35")).temperatureExtreme).toBe(true);
+    expect(toSevereCap(at("under35")).hypothermiaUnder36).toBe(true);
+
+    // The band between: severe CAP only.
+    expect(toPsi(at("band35to36")).temperatureExtreme).toBe(false);
+    expect(toSevereCap(at("band35to36")).hypothermiaUnder36).toBe(true);
+
+    // Normal: neither.
+    expect(toPsi(at("normal")).temperatureExtreme).toBe(false);
+    expect(toSevereCap(at("normal")).hypothermiaUnder36).toBe(false);
+
+    // Hot: PSI only. A febrile patient is not hypothermic — the trap
+    // the old disjunction made easy to fall into.
+    expect(toPsi(at("over40")).temperatureExtreme).toBe(true);
+    expect(toSevereCap(at("over40")).hypothermiaUnder36).toBe(false);
+  });
+
+  it("declares the same points on the level options as the scores award", () => {
+    for (const level of CASE_LEVELS) {
+      for (const option of level.options) {
+        const base = emptyCase();
+        const withIt = { ...base, [level.key]: option.value } as CaseState;
+
+        const psiDelta = psi(toPsi(withIt)).points - psi(toPsi(base)).points;
+        expect(psiDelta, `${level.key}/${option.value} PSI`).toBe(option.psi ?? 0);
+
+        const before = severeCap(toSevereCap(base));
+        const after = severeCap(toSevereCap(withIt));
+        const minorDelta = after.minorCount - before.minorCount;
+        expect(minorDelta, `${level.key}/${option.value} severe`).toBe(
+          option.severe === "minor" ? 1 : 0,
+        );
+      }
+    }
   });
 
   it("shares exactly one fact between the two scores", () => {

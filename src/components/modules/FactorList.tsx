@@ -118,3 +118,96 @@ export function FactorGroup({
     </div>
   );
 }
+
+export interface LevelChoice {
+  value: string;
+  label: string;
+  contributions?: FactorContribution[];
+}
+
+/**
+ * One measurement, several bands.
+ *
+ * A variable read by two scores at different cut points cannot honestly
+ * be two checkboxes — they can disagree with the arithmetic, and with
+ * each other. Stating the measurement once and letting each score take
+ * what it needs removes the contradiction rather than papering over it.
+ */
+export function FactorLevels({
+  label,
+  options,
+  value,
+  onChange,
+  inert = false,
+}: {
+  label: string;
+  options: LevelChoice[];
+  value: string;
+  onChange: (next: string) => void;
+  inert?: boolean;
+}) {
+  const selected = options.find((o) => o.value === value);
+  const parts = selected?.contributions ?? [];
+
+  return (
+    <div
+      className={`flex flex-col gap-1.5 border-b border-hair py-[5px] ${
+        inert ? "opacity-45" : ""
+      }`}
+    >
+      <span className="flex items-baseline justify-between gap-3">
+        <span className="flex items-center gap-2">
+          <span
+            className={`h-[5px] w-[5px] flex-none rounded-full ${
+              parts.length ? "bg-scale" : "bg-rule"
+            }`}
+          />
+          <span
+            className={`truncate text-[12.5px] ${
+              parts.length ? "text-ink" : "text-faint"
+            }`}
+          >
+            {label}
+          </span>
+        </span>
+
+        <span className="flex flex-none items-baseline gap-2">
+          {parts.length ? (
+            parts.map((part) => (
+              <span key={part.score ?? "only"} className="flex items-baseline gap-1">
+                {part.score ? (
+                  <span className="text-[9px] font-semibold uppercase tracking-[0.09em] text-ink opacity-70">
+                    {part.score}
+                  </span>
+                ) : null}
+                <span className="tnum font-mono text-[12px] text-ink">
+                  {part.points ? part.points : "\u2713"}
+                </span>
+              </span>
+            ))
+          ) : (
+            <span className="tnum font-mono text-[12px] text-faint/60">0</span>
+          )}
+        </span>
+      </span>
+
+      <span className="flex gap-1">
+        {options.map((option) => (
+          <button
+            key={option.value}
+            type="button"
+            aria-pressed={option.value === value}
+            onClick={() => onChange(option.value)}
+            className={`flex-1 border px-1 py-[3px] text-[10.5px] transition-colors ${
+              option.value === value
+                ? "border-ink text-ink"
+                : "border-hair text-faint hover:text-soft"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </span>
+    </div>
+  );
+}
