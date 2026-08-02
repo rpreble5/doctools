@@ -213,30 +213,27 @@ export function isLevelLive(level: CaseLevel, focus: Focus): boolean {
   );
 }
 
-export const CATEGORY_LABEL: Record<Category, string> = {
-  comorbidity: "Comorbidity",
-  exposure: "Exposure",
-  vitals: "Vitals",
-  support: "Support",
-  imaging: "Imaging",
-  labs: "Labs",
-};
+export interface CaseColumn {
+  /** The heading. Two joined names where a column carries two groups. */
+  label: string;
+  groups: Category[];
+}
 
 /**
- * How the groups sit on the page: four columns, some carrying two
- * groups stacked.
+ * How the groups sit on the page: four columns of roughly ten rows.
  *
- * Imaging is two rows and would waste a column of its own, so it sits
- * above the labs — both are things that come back rather than things
- * you observe. Support sits under the vitals it responds to. The
- * arrangement also happens to even the columns out, which the previous
- * one did not: examination ran to eleven rows beside comorbidity's six.
+ * Support and imaging are three rows and two, too short to earn a
+ * column each, so each rides under a longer group it belongs beside —
+ * support under the vitals it responds to, imaging under the labs,
+ * both being things that come back rather than things you observe. One
+ * heading names the pair; a second heading for three rows would cost
+ * more attention than it returns.
  */
-export const CASE_COLUMNS: Category[][] = [
-  ["comorbidity"],
-  ["exposure"],
-  ["vitals", "support"],
-  ["imaging", "labs"],
+export const CASE_COLUMNS: CaseColumn[] = [
+  { label: "Comorbidity", groups: ["comorbidity"] },
+  { label: "Exposure", groups: ["exposure"] },
+  { label: "Vitals / Support", groups: ["vitals", "support"] },
+  { label: "Labs / Imaging", groups: ["labs", "imaging"] },
 ];
 
 export const factsIn = (category: Category): CaseFact[] =>

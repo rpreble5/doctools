@@ -33,7 +33,6 @@ import {
 
 import {
   CASE_COLUMNS,
-  CATEGORY_LABEL,
   emptyCase,
   factsIn,
   levelsIn,
@@ -211,7 +210,7 @@ export function CapTool() {
         >
           <div className="grid grid-cols-1 gap-x-9 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
             {CASE_COLUMNS.map((column, columnIndex) => (
-              <div key={column.join("-")} className="flex min-w-0 flex-col gap-4">
+              <div key={column.label} className="flex min-w-0 flex-col gap-4">
                 {columnIndex === 0 ? (
                   <div className="flex flex-col gap-1.5 border-b border-hair pb-3.5">
                     <span className="flex items-baseline justify-between gap-3">
@@ -246,9 +245,11 @@ export function CapTool() {
                     </span>
                   </div>
                 ) : null}
-                {column.map((category) => (
-                  <FactorGroup key={category} label={CATEGORY_LABEL[category]}>
-                    {levelsIn(category).map((level) => (
+                {/* One heading per column, even where it covers two
+                    groups — the rows below it read as a single list. */}
+                <FactorGroup label={column.label}>
+                  {column.groups.flatMap((category) => [
+                    ...levelsIn(category).map((level) => (
                       <FactorLevels
                         key={level.key}
                         label={level.label}
@@ -270,8 +271,8 @@ export function CapTool() {
                           ],
                         }))}
                       />
-                    ))}
-                    {factsIn(category).map((fact) => (
+                    )),
+                    ...factsIn(category).map((fact) => (
                       <Factor
                         key={fact.key}
                         label={fact.label}
@@ -283,9 +284,9 @@ export function CapTool() {
                           ...(fact.drip !== undefined ? [{ score: "DRIP", points: fact.drip }] : []),
                         ]}
                       />
-                    ))}
-                  </FactorGroup>
-                ))}
+                    )),
+                  ])}
+                </FactorGroup>
               </div>
             ))}
           </div>
