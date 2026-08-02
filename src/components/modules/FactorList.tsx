@@ -10,16 +10,30 @@ import type { ReactNode } from "react";
  * dressed up as explanation — the row that carries the points is the
  * row you click.
  */
+export interface FactorContribution {
+  /** Which score this feeds. Omitted when there is only one in play. */
+  score?: string;
+  points: number;
+}
+
 export function Factor({
   label,
   points,
+  contributions,
   active,
   onToggle,
   disabled = false,
   inert = false,
 }: {
   label: string;
-  points: number;
+  /** Shorthand for a single unnamed contribution. */
+  points?: number;
+  /**
+   * What this fact is worth, per score. Named when more than one score
+   * is on screen, so a row can say which question it answers without a
+   * legend.
+   */
+  contributions?: FactorContribution[];
   active: boolean;
   onToggle: (next: boolean) => void;
   disabled?: boolean;
@@ -30,6 +44,8 @@ export function Factor({
    */
   inert?: boolean;
 }) {
+  const parts: FactorContribution[] =
+    contributions ?? (points === undefined ? [] : [{ points }]);
   return (
     <button
       type="button"
@@ -60,11 +76,26 @@ export function Factor({
       {/* An inert factor shows a dash even when present — the finding is
           real, it just is not counting toward the current result. */}
       <span
-        className={`tnum flex-none font-mono text-[12px] ${
+        className={`flex flex-none items-baseline gap-2 ${
           inert ? "text-faint/40" : active ? "text-ink" : "text-faint/70"
         }`}
       >
-        {inert ? "—" : active ? points : `+${points}`}
+        {inert ? (
+          <span className="tnum font-mono text-[12px]">—</span>
+        ) : (
+          parts.map((part) => (
+            <span key={part.score ?? "only"} className="flex items-baseline gap-1">
+              {part.score ? (
+                <span className="text-[9px] font-semibold uppercase tracking-[0.09em] opacity-70">
+                  {part.score}
+                </span>
+              ) : null}
+              <span className="tnum font-mono text-[12px]">
+                {active ? part.points : `+${part.points}`}
+              </span>
+            </span>
+          ))
+        )}
       </span>
     </button>
   );
