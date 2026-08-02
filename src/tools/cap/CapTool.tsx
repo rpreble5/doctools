@@ -12,7 +12,7 @@ import { IconArray, IconArrayKey } from "@/components/modules/IconArray";
 import { ProbabilityBand } from "@/components/modules/ProbabilityBand";
 import { SeamNote } from "@/components/modules/SeamNote";
 import { Trajectory } from "@/components/modules/Trajectory";
-import { Segmented, SliderField, ToggleChip } from "@/components/modules/controls";
+import { Segmented, ToggleChip } from "@/components/modules/controls";
 import { Factor, FactorGroup } from "@/components/modules/FactorList";
 import { Panel, PanelRow } from "@/components/shell/Panel";
 import { ToolFrame } from "@/components/shell/ToolFrame";
@@ -126,17 +126,8 @@ export function CapTool() {
   const extraDays = Math.max(0, days - durationGuidance.maxGuidelineDays);
   const withinGuideline = days <= durationGuidance.maxGuidelineDays;
 
-  const abnormalFindings = port.contributions.filter(
-    (c) => !c.label.startsWith("Age"),
-  ).length;
-
-  const caseFields = [
-    { label: "Age", value: caseState.ageYears },
-    { label: "Findings", value: abnormalFindings },
-  ];
-
   return (
-    <ToolFrame meta={meta} caseFields={caseFields}>
+    <ToolFrame meta={meta}>
       {/* ===================== LIVE SCORES =====================
           Directly above the inputs, so a toggle and its consequence
           are on screen together. Detail lives below; this is the part
@@ -195,37 +186,12 @@ export function CapTool() {
 
       {/* ===================== THE CASE ===================== */}
       <PanelRow>
-        <Panel title="The case" span={3}>
-          <div className="flex flex-wrap items-end justify-between gap-5">
-            <div className="flex flex-wrap items-end gap-x-10 gap-y-4">
-              <div className="w-[210px]">
-                <SliderField
-                  label="Age"
-                  value={caseState.ageYears}
-                  onChange={(next) => setFact("ageYears", next)}
-                  min={18}
-                  max={100}
-                  suffix="years"
-                  note={`PSI ${caseState.sex === "male" ? caseState.ageYears : caseState.ageYears - 10}`}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
-                  Sex
-                </span>
-                <Segmented
-                  value={caseState.sex}
-                  onChange={(next) => setFact("sex", next)}
-                  options={[
-                    { value: "male", label: "Male" },
-                    { value: "female", label: "Female" },
-                  ]}
-                />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-faint">
+        <Panel
+          title="The case"
+          span={3}
+          aside={
+            <span className="flex items-center gap-3">
+              <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-faint">
                 Show
               </span>
               <Segmented
@@ -238,12 +204,47 @@ export function CapTool() {
                   { value: "severe", label: "Severe" },
                 ]}
               />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 gap-x-9 gap-y-5 border-t border-hair pt-5 sm:grid-cols-2 xl:grid-cols-4">
+            </span>
+          }
+        >
+          <div className="grid grid-cols-1 gap-x-9 gap-y-5 sm:grid-cols-2 xl:grid-cols-4">
             {CATEGORIES.map((category) => (
-              <FactorGroup key={category} label={CATEGORY_LABEL[category]}>
+              <div key={category} className="flex min-w-0 flex-col gap-4">
+                {category === "comorbidity" ? (
+                  <div className="flex flex-col gap-1.5 border-b border-hair pb-3.5">
+                    <span className="flex items-baseline justify-between gap-3">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.13em] text-soft">
+                        Age
+                      </span>
+                      <span className="tnum font-mono text-[10.5px] text-faint">
+                        PSI {caseState.sex === "male" ? caseState.ageYears : caseState.ageYears - 10}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <b className="tnum w-7 font-mono text-[17px] font-normal leading-none tracking-[-0.02em]">
+                        {caseState.ageYears}
+                      </b>
+                      <input
+                        type="range"
+                        aria-label="Age in years"
+                        className="range flex-1"
+                        min={18}
+                        max={100}
+                        value={caseState.ageYears}
+                        onChange={(e) => setFact("ageYears", e.target.valueAsNumber)}
+                      />
+                      <Segmented
+                        value={caseState.sex}
+                        onChange={(next) => setFact("sex", next)}
+                        options={[
+                          { value: "male", label: "M" },
+                          { value: "female", label: "F" },
+                        ]}
+                      />
+                    </span>
+                  </div>
+                ) : null}
+              <FactorGroup label={CATEGORY_LABEL[category]}>
                 {factsIn(category).map((fact) => (
                   <Factor
                     key={fact.key}
@@ -258,6 +259,7 @@ export function CapTool() {
                   />
                 ))}
               </FactorGroup>
+              </div>
             ))}
           </div>
 

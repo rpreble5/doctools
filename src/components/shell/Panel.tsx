@@ -9,11 +9,14 @@ import { Eyebrow } from "@/components/modules/Eyebrow";
 export function Panel({
   title,
   span = 1,
+  aside,
   children,
 }: {
   title: string;
   /** Columns to occupy in the tool grid. */
   span?: 1 | 2 | 3;
+  /** A control that belongs to the panel, sat on the title line. */
+  aside?: ReactNode;
   children: ReactNode;
 }) {
   const width =
@@ -21,7 +24,14 @@ export function Panel({
 
   return (
     <section className={`flex min-w-0 flex-col gap-3.5 ${width}`}>
-      <Eyebrow>{title}</Eyebrow>
+      {aside ? (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <Eyebrow>{title}</Eyebrow>
+          {aside}
+        </div>
+      ) : (
+        <Eyebrow>{title}</Eyebrow>
+      )}
       {children}
     </section>
   );
