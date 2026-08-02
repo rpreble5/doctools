@@ -97,19 +97,18 @@ export function BandBar({
 
       {/* the line */}
       <div className="relative h-[3px] w-full bg-sunk">
-        {!bypassed ? (
-          <div
-            className="absolute inset-y-0 left-0 bg-scale transition-[width] duration-500 ease-out"
-            style={{ width: pct(clamped) }}
-          />
-        ) : null}
+        {/* Width zero rather than unmounted, so crossing a boundary grows. */}
+        <div
+          className="absolute inset-y-0 left-0 bg-scale transition-[width] duration-[250ms] ease-out"
+          style={{ width: bypassed ? "0%" : pct(clamped) }}
+        />
       </div>
 
       {/* the score, riding the end of the line */}
       <div className="relative h-5">
         {!bypassed ? (
           <span
-            className="tnum absolute top-1 -translate-x-1/2 font-mono text-[11px] text-ink transition-[left] duration-500 ease-out"
+            className="tnum absolute top-1 -translate-x-1/2 font-mono text-[11px] text-ink transition-[left] duration-[250ms] ease-out"
             style={{ left: pct(clamped) }}
           >
             {value}

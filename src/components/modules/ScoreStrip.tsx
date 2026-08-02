@@ -85,7 +85,7 @@ export function ScoreStrip({
           {Array.from({ length: segments }, (_, i) => (
             <span
               key={i}
-              className={`h-[3px] flex-1 transition-colors duration-500 ${
+              className={`h-[3px] flex-1 transition-colors duration-[250ms] ${
                 i < filled ? "bg-scale" : "bg-sunk"
               }`}
             />
@@ -93,12 +93,16 @@ export function ScoreStrip({
         </div>
       ) : (
         <div className="relative h-[3px] w-full bg-sunk" aria-hidden="true">
-          {!bypassed ? (
-            <div
-              className="absolute inset-y-0 left-0 bg-scale transition-[width] duration-500 ease-out"
-              style={{ width: `${Math.min(100, progress * 100)}%` }}
-            />
-          ) : null}
+          {/*
+            Always rendered, width zero when bypassed. Unmounting it meant
+            the fill reappeared already at its final width, so crossing
+            out of class I jumped instead of growing — there was no
+            starting value to animate from.
+          */}
+          <div
+            className="absolute inset-y-0 left-0 bg-scale transition-[width] duration-[250ms] ease-out"
+            style={{ width: bypassed ? "0%" : `${Math.min(100, progress * 100)}%` }}
+          />
           {thresholds.map((t) => (
             <span
               key={t}
