@@ -1,5 +1,6 @@
 import type { DripFindings } from "@/lib/scores/drip";
 import { isStepOneFactor, type PsiFindings } from "@/lib/scores/psi";
+import type { SevereCapFindings } from "@/lib/scores/severeCap";
 
 /**
  * The case, as one set of facts.
@@ -49,15 +50,32 @@ export type FactKey =
   | "uraemia"
   | "hyponatraemia"
   | "hyperglycaemia"
-  | "anaemia";
+  | "anaemia"
+  // severe CAP — major
+  | "septicShock"
+  | "mechanicalVentilation"
+  // severe CAP — minor not already collected
+  | "multilobarInfiltrates"
+  | "hypothermiaUnder36"
+  | "hypotensionNeedingFluids"
+  | "pafiUnder250"
+  | "uraemiaOver20"
+  | "leukopenia"
+  | "thrombocytopenia"
+  // context for the steroid decision
+  | "influenza";
 
 export interface CaseFact {
   key: FactKey;
   label: string;
   category: Category;
-  /** Points contributed to each score. A fact may feed one or both. */
+  /** Points contributed to each score. A fact may feed more than one. */
   psi?: number;
   drip?: number;
+  /** Severe CAP is met by counting criteria, not points. */
+  severe?: "major" | "minor";
+  /** Bears on the steroid decision without being a criterion. */
+  steroidContext?: boolean;
 }
 
 export const CASE_FACTS: CaseFact[] = [
@@ -81,13 +99,18 @@ export const CASE_FACTS: CaseFact[] = [
   { key: "gastricAcidSuppression", label: "Gastric acid suppression", category: "exposure", drip: 1 },
 
   // ---- examination ----
-  { key: "alteredMentalStatus", label: "Altered mental status", category: "examination", psi: 20 },
-  { key: "tachypnoea", label: "Resp rate ≥ 30", category: "examination", psi: 20 },
+  { key: "alteredMentalStatus", label: "Altered mental status", category: "examination", psi: 20, severe: "minor" },
+  { key: "tachypnoea", label: "Resp rate ≥ 30", category: "examination", psi: 20, severe: "minor" },
   { key: "hypotension", label: "Systolic < 90", category: "examination", psi: 20 },
   { key: "temperatureExtreme", label: "Temp < 35 or ≥ 40", category: "examination", psi: 15 },
   { key: "tachycardia", label: "Pulse ≥ 125", category: "examination", psi: 10 },
   { key: "hypoxaemia", label: "SpO₂ < 90", category: "examination", psi: 10 },
   { key: "pleuralEffusion", label: "Pleural effusion", category: "examination", psi: 10 },
+  { key: "septicShock", label: "Septic shock, on pressors", category: "examination", severe: "major" },
+  { key: "mechanicalVentilation", label: "Needs ventilation", category: "examination", severe: "major" },
+  { key: "hypotensionNeedingFluids", label: "Hypotension needing fluids", category: "examination", severe: "minor" },
+  { key: "hypothermiaUnder36", label: "Temp < 36 °C", category: "examination", severe: "minor" },
+  { key: "multilobarInfiltrates", label: "Multilobar infiltrates", category: "examination", severe: "minor" },
 
   // ---- results ----
   { key: "acidosis", label: "pH < 7.35", category: "results", psi: 30 },
@@ -95,6 +118,11 @@ export const CASE_FACTS: CaseFact[] = [
   { key: "hyponatraemia", label: "Sodium < 130", category: "results", psi: 20 },
   { key: "hyperglycaemia", label: "Glucose ≥ 250", category: "results", psi: 10 },
   { key: "anaemia", label: "Haematocrit < 30", category: "results", psi: 10 },
+  { key: "uraemiaOver20", label: "BUN ≥ 20", category: "results", severe: "minor" },
+  { key: "pafiUnder250", label: "PaO₂/FiO₂ ≤ 250", category: "results", severe: "minor" },
+  { key: "leukopenia", label: "White cells < 4000", category: "results", severe: "minor" },
+  { key: "thrombocytopenia", label: "Platelets < 100k", category: "results", severe: "minor" },
+  { key: "influenza", label: "Influenza positive", category: "results", steroidContext: true },
 ];
 
 export const CATEGORY_LABEL: Record<Category, string> = {
@@ -153,6 +181,30 @@ export const toPsi = (c: CaseState): PsiFindings => ({
   anaemia: c.anaemia,
 });
 
+/**
+ * Severe CAP reads two facts PSI already collects, and two more at
+ * different cut points.
+ *
+ * BUN is the one that can be derived: PSI scores at 30, severe CAP at
+ * 20, and thirty is twenty. Ticking the PSI row therefore lights the
+ * severe row on its own. Temperature cannot be derived the same way —
+ * PSI's fact is "under 35 or 40 and over", which does not imply "under
+ * 36" when it was the high limb that was true.
+ */
+export const toSevereCap = (c: CaseState): SevereCapFindings => ({
+  septicShock: c.septicShock,
+  mechanicalVentilation: c.mechanicalVentilation,
+  tachypnoea: c.tachypnoea,
+  pafiUnder250: c.pafiUnder250,
+  multilobarInfiltrates: c.multilobarInfiltrates,
+  confusion: c.alteredMentalStatus,
+  uraemiaOver20: c.uraemiaOver20 || c.uraemia,
+  leukopenia: c.leukopenia,
+  thrombocytopenia: c.thrombocytopenia,
+  hypothermiaUnder36: c.hypothermiaUnder36,
+  hypotensionNeedingFluids: c.hypotensionNeedingFluids,
+});
+
 export const toDrip = (c: CaseState): DripFindings => ({
   antibioticsWithin60Days: c.antibioticsWithin60Days,
   tubeFeeding: c.tubeFeeding,
@@ -170,7 +222,7 @@ export const toDrip = (c: CaseState): DripFindings => ({
    Which facts are live
    ------------------------------------------------------------------ */
 
-export type Focus = "both" | "psi" | "drip";
+export type Focus = "all" | "psi" | "drip" | "severe";
 
 /**
  * Whether a fact can currently affect anything.
@@ -187,9 +239,16 @@ export function isFactLive(
 ): boolean {
   if (focus === "psi" && fact.psi === undefined) return false;
   if (focus === "drip" && fact.drip === undefined) return false;
+  if (focus === "severe" && fact.severe === undefined) return false;
 
-  if (psiInClassOne && fact.drip === undefined) {
-    return isStepOneFactor(fact.key);
-  }
+  // Class I stops PSI counting, but only PSI. A fact that feeds
+  // anything else is still doing work.
+  const psiOnly =
+    fact.psi !== undefined &&
+    fact.drip === undefined &&
+    fact.severe === undefined &&
+    !fact.steroidContext;
+
+  if (psiInClassOne && psiOnly) return isStepOneFactor(fact.key);
   return true;
 }
