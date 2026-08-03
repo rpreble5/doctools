@@ -24,6 +24,11 @@
   --hair: #e0daca;
   --rule: #cfc7b3;
 
+  /* The ground behind a row that is counting toward a score. Half a
+     step off --bg on purpose: at full --sunk a column of thirty rows
+     reads as stripes rather than as grouping. */
+  --band: color-mix(in srgb, var(--sunk) 55%, var(--bg));
+
   /* ---- ink ---- */
   --ink: #23201a;
   --soft: #625c4e;
@@ -54,6 +59,7 @@
   --color-sunk: var(--sunk);
   --color-hair: var(--hair);
   --color-rule: var(--rule);
+  --color-band: var(--band);
 
   --color-ink: var(--ink);
   --color-soft: var(--soft);
